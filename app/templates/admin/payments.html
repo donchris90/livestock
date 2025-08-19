@@ -1,0 +1,48 @@
+<h3 class="mb-4">💳 All Payments & Refund Requests</h3>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>User</th>
+      <th>Plan</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>Refund?</th>
+      <th>Expires</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in payments %}
+    <tr>
+      <td>{{ p.user.first_name }} {{ p.user.last_name }}</td>
+      <td>{{ p.plan_name }}</td>
+      <td>₦{{ p.amount }}</td>
+      <td>{{ p.status }}</td>
+      <td>
+        {% if p.refund_requested %}
+          <span class="text-warning">Requested</span>
+        {% elif p.status == 'refunded' %}
+          <span class="text-success">Refunded</span>
+        {% else %}
+          -
+        {% endif %}
+      </td>
+      <td>{{ p.expires_at.strftime('%Y-%m-%d') if p.expires_at else '-' }}</td>
+      <td>
+        {% if p.refund_requested %}
+          <form action="{{ url_for('admin.approve_refund', payment_id=p.id) }}" method="POST">
+            <button type="submit" class="btn btn-sm btn-success">Approve Refund</button>
+          </form>
+        {% else %}
+          <span class="text-muted">No Action</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div class="mb-3">
+  <a href="{{ url_for('admin.all_payments') }}" class="btn btn-secondary btn-sm {% if not filter_type %}active{% endif %}">All</a>
+  <a href="{{ url_for('admin.all_payments', filter='refunds') }}" class="btn btn-warning btn-sm {% if filter_type == 'refunds' %}active{% endif %}">Refund Requests</a>
+</div>

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h3>✅ Confirmed Inspections</h3>
+
+  {% if bookings %}
+    {% for booking in bookings %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5>Booking #{{ booking.id }} - {{ booking.product.title }}</h5>
+          <p><strong>Category:</strong> {{ booking.product.category }}</p>
+          <p><strong>Location:</strong> {{ booking.product.city }}, {{ booking.product.state }}</p>
+          <p><strong>Outcome:</strong> {{ booking.inspection_outcome or 'No outcome given' }}</p>
+          <p><strong>Report:</strong> {{ booking.inspection_report or 'No report submitted' }}</p>
+          <span class="badge bg-success">✅ Marked complete by buyer</span>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="alert alert-info text-center">😐 No inspections marked complete yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

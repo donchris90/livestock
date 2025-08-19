@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-3">Admin Settings</h3>
+    <form method="POST">
+        {{ csrf_token() }}
+
+        <div class="form-group mb-3">
+            <label for="admin_recipient_code">Admin Recipient Code</label>
+            <input type="text" name="admin_recipient_code" class="form-control"
+                   value="{{ settings.get('admin_recipient_code', '') }}">
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="admin_paystack_account">Paystack Business Account</label>
+            <input type="text" name="admin_paystack_account" class="form-control"
+                   value="{{ settings.get('admin_paystack_account', '') }}">
+        </div>
+
+        <!-- Add more settings fields as needed -->
+
+        <button type="submit" class="btn btn-primary">Update Settings</button>
+    </form>
+</div>
+{% endblock %}

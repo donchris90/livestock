@@ -1,0 +1,11 @@
+{% for insp in inspections %}
+  <tr>
+    <td>{{ insp.id }}</td>
+    <td>{{ insp.booking_id }}</td>
+    <td>{{ insp.inspector.first_name if insp.inspector else 'N/A' }}</td>
+    <td>{{ insp.inspection_date.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>{{ insp.status }}</td>
+    <td>{{ insp.notes or '' }}</td>
+    <td>{{ insp.booking.agent.first_name }} {{ insp.booking.agent.last_name }}</td>  <!-- ✅ Agent Info -->
+  </tr>
+{% endfor %}

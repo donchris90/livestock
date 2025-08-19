@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Book Agent{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">📅 Book Agent for Inspection</h2>
+
+    <!-- Agent Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">👤 Agent: {{ agent.first_name }} {{ agent.last_name }}</h5>
+            <p class="card-text">📍 Location: {{ agent.state }}, {{ agent.city }}</p>
+            <p class="card-text">📧 Email: {{ agent.email }}</p>
+        </div>
+    </div>
+
+    <!-- Product Card -->
+    {% if product %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">🛒 Product: {{ product.title }}</h5>
+            <p class="card-text">📍 Location: {{ product.state }}, {{ product.city }}</p>
+            <p class="card-text">💰 Price: ₦{{ product.price }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Display form errors -->
+    {% for field, errors in form.errors.items() %}
+        <div class="alert alert-danger">
+            <strong>{{ field }}:</strong> {{ errors|join(', ') }}
+        </div>
+    {% endfor %}
+
+    <!-- Booking Form -->
+    <form method="POST">
+        {{ form.hidden_tag() }}   <!-- CSRF + hidden fields -->
+
+        <!-- Hidden product ID -->
+        {{ form.product_id }}
+
+        <!-- Booking Date -->
+        <div class="mb-3">
+            {{ form.date.label(class="form-label") }}
+            {{ form.date(class="form-control", placeholder="YYYY-MM-DD") }}
+        </div>
+
+        <!-- Message -->
+        <div class="mb-3">
+            {{ form.message.label(class="form-label") }}
+            {{ form.message(class="form-control", rows="4") }}
+        </div>
+
+        <!-- Submit -->
+        {{ form.submit(class="btn btn-primary") }}
+        <a href="{{ url_for('seller_dashboard.product_detail', product_id=product.id) }}" class="btn btn-secondary">Cancel</a>
+    </form>
+
+    <!-- Agent Reviews -->
+    <hr>
+    <h4>Reviews</h4>
+    {% for review in reviews %}
+        <p><strong>{{ review.reviewer.first_name }}:</strong> {{ review.comment }}</p>
+    {% else %}
+        <p>No reviews yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}

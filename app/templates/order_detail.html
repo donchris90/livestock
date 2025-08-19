@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <h2>📦 Order Details</h2>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            Product: {{ order.product.title }}
+        </div>
+        <div class="card-body">
+
+            {# --- Status Badge with Tooltip & Icon --- #}
+            <p><strong>Status:</strong>
+                {% set status = order.status.name %}
+                <span class="badge
+                    {% if status == 'PENDING' %}bg-warning text-dark
+                    {% elif status == 'ACCEPTED' %}bg-primary text-white
+                    {% elif status == 'PAID' %}bg-success text-white
+                    {% elif status == 'SHIPPED' %}bg-info text-white
+                    {% elif status == 'COMPLETED' %}bg-dark text-white
+                    {% elif status == 'CANCELED' %}bg-danger text-white
+                    {% else %}bg-secondary text-white
+                    {% endif %}"
+                      data-bs-toggle="tooltip" title="Order is {{ order.status.value }}">
+                    {% if status == 'PENDING' %}⏳
+                    {% elif status == 'ACCEPTED' %}✔️
+                    {% elif status == 'PAID' %}💰
+                    {% elif status == 'SHIPPED' %}🚚
+                    {% elif status == 'COMPLETED' %}🏁
+                    {% elif status == 'CANCELED' %}❌
+                    {% endif %}
+                    {{ order.status.value }}
+                </span>
+
+                {# --- Escrow Badge with Icon & Tooltip --- #}
+                {% if current_user.id == order.buyer_id %}
+                    {% for e in order.product.escrows %}
+                        {% if e.buyer_id == current_user.id and not e.is_paid %}
+                            <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" title="Your escrow payment is pending">
+                                🔒 Pending Escrow
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+                {% elif current_user.id == order.seller_id %}
+                    {% for e in order.product.escrows %}
+                        {% if e.is_paid %}
+                            <span class="badge bg-success text-dark" data-bs-toggle="tooltip" title="Escrow payment received">
+                                💵 Escrow Received
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </p>
+
+            <p><strong>Agreed Price:</strong> ₦{{ order.agreed_price or "N/A" }}</p>
+            <p><strong>Created:</strong> {{ order.created_at.strftime('%b %d, %Y') }}</p>
+
+            <hr>
+            <h5>👤 Parties</h5>
+            <p><strong>Buyer:</strong> {{ order.buyer.full_name }} ({{ order.buyer.phone }})</p>
+            <p><strong>Seller:</strong> {{ order.seller.full_name }} ({{ order.seller.phone }})</p>
+
+            {% if order.agent_id %}
+            <p><strong>Agent:</strong> {{ order.agent.full_name }} ({{ order.agent.phone }})</p>
+            {% endif %}
+
+            <hr>
+            <a href="{{ url_for('chat.chat_with_user', receiver_id=(order.seller.id if current_user.id == order.buyer_id else order.buyer.id)) }}" class="btn btn-success">💬 Chat Now</a>
+            <a href="https://wa.me/{{ order.seller.phone if current_user.id == order.buyer_id else order.buyer.phone }}" class="btn btn-outline-success" target="_blank">📱 WhatsApp</a>
+            {% if order.agent_id %}
+            <a href="{{ url_for('view_agent', agent_id=order.agent.id) }}" class="btn btn-outline-primary">🕵️ View Agent</a>
+            {% endif %}
+
+            <hr>
+            {# Show Escrow button only if buyer has not paid/completed escrow #}
+            {% if current_user.id == order.buyer_id %}
+                {% set show_escrow = true %}
+                {% for e in order.product.escrows %}
+                    {% if e.buyer_id == current_user.id and e.is_paid %}
+                        {% set show_escrow = false %}
+                    {% endif %}
+                {% endfor %}
+                {% if show_escrow and order.status.name not in ['PAID','COMPLETED'] %}
+                    <a href="{{ url_for('escrow.escrow_offer', product_id=order.product.id) }}" class="btn btn-warning mb-3">
+                        💰 Use Escrow
+                    </a>
+                {% endif %}
+            {% endif %}
+
+            <hr>
+            {# Action buttons #}
+            {% for action in actions %}
+            <form method="POST" action="{{ url_for('seller_dashboard.handle_order_action', order_id=order.id, action=action) }}" class="d-inline">
+                <button type="submit" class="btn btn-outline-primary">
+                    {% if action == "accepted" %}Accept
+                    {% elif action == "canceled" %}Cancel
+                    {% elif action == "shipped" %}Mark as Shipped
+                    {% elif action == "completed" %}Mark as Completed
+                    {% elif action == "paid" %}Mark as Paid
+                    {% endif %}
+                </button>
+            </form>
+            {% endfor %}
+
+        </div>
+    </div>
+
+    <a href="{{ url_for('seller_dashboard.my_orders') }}" class="btn btn-secondary">← Back to Orders</a>
+</div>
+
+{# --- Initialize Bootstrap Tooltips --- #}
+<script>
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+</script>
+{% endblock %}

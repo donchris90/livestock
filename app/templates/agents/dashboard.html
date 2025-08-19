@@ -1,0 +1,149 @@
+{% extends "agents/base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+    <!-- Welcome Header -->
+    <div class="mb-4 text-center">
+        <h1 class="fw-bold">👋 Welcome, {{ user.first_name }} {{ user.last_name }}</h1>
+        <p class="text-muted">Here’s a summary of your profile, earnings, and bookings</p>
+    </div>
+
+    <!-- Top Cards: Profile, Bookings, Earnings -->
+    <div class="row g-3 mb-4">
+
+        <!-- Profile Completion -->
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3 text-center h-100">
+                <i class="bi bi-person-check-fill fs-3 text-primary mb-2"></i>
+                <h6>Profile Completion</h6>
+                <div class="progress mb-2">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ profile_completion }}%" aria-valuenow="{{ profile_completion }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ profile_completion }}%
+                    </div>
+                </div>
+                <small>Complete your profile to attract more bookings</small>
+            </div>
+        </div>
+
+        <!-- Bookings -->
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3 text-center h-100">
+                <i class="bi bi-calendar-check-fill fs-3 text-success mb-2"></i>
+                <h6>Bookings</h6>
+                <p class="mb-0"><strong>Total:</strong> {{ total_bookings }}</p>
+                <p class="mb-0 text-success"><strong>Completed:</strong> {{ completed_bookings }}</p>
+                <p class="mb-0 text-warning"><strong>Pending:</strong> {{ pending_bookings }}</p>
+            </div>
+        </div>
+
+        <!-- Total Earnings & Withdraw -->
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3 h-100">
+                <h5 class="fw-bold mb-3">💰 Earnings</h5>
+                <p><strong>Released Escrow:</strong> ₦{{ "{:,.2f}".format(total_escrow_released) }}</p>
+                <p><strong>Direct Payments:</strong> ₦{{ "{:,.2f}".format(total_direct_received) }}</p>
+                <hr>
+                <p><strong>Total Earned:</strong> ₦{{ "{:,.2f}".format(total_escrow_released + total_direct_received) }}</p>
+                <p><strong>Wallet Balance:</strong> ₦{{ "{:,.2f}".format(wallet.balance or 0) }}</p>
+
+                {% if wallet.balance > 0 %}
+                <form action="{{ url_for('seller_dashboard.agent_withdraw') }}" method="GET">
+                    <button type="submit" class="btn btn-primary btn-sm mt-2 w-100">
+                        Withdraw ₦{{ "{:,.2f}".format(wallet.balance) }}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 💵 Escrow Status (Agent & Logistics) -->
+    <div class="card mb-4 shadow-sm p-3">
+        <h5 class="mb-3">💵 Escrow Status (Agent & Logistics)</h5>
+        {% if escrows %}
+            <div class="progress mb-3">
+                {% set escrow_total = total_escrow_released + total_escrow_pending %}
+                {% set escrow_percent = (total_escrow_released / escrow_total * 100) if escrow_total > 0 else 0 %}
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ escrow_percent }}%">
+                    Released ₦{{ "{:,.2f}".format(total_escrow_released) }} / ₦{{ "{:,.2f}".format(escrow_total) }}
+                </div>
+            </div>
+
+            <div id="escrow-list">
+                {% for escrow in escrows %}
+                <div class="card mb-2 p-2 shadow-sm {% if escrow.status=='released' %}bg-light text-muted{% endif %}" id="escrow-{{ escrow.id }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>Provider:</strong> {{ escrow.provider.full_name }}<br>
+                            <strong>Type:</strong> {{ escrow.type|capitalize }}
+                        </div>
+                        <div class="text-end">
+                            <div class="released-amount">💰 Released: ₦{{ "{:,.2f}".format(escrow.partial_release_amount or 0) }}</div>
+                            <div class="pending-amount text-warning">⏳ Pending: ₦{{ "{:,.2f}".format((escrow.amount or 0) - (escrow.partial_release_amount or 0)) }}</div>
+                            <div class="status">📌 Status: {{ escrow.status.replace("_", " ").title() }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No escrows found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Recent Bookings -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3 h-100">
+                <h5 class="mb-3">📅 Recent Bookings</h5>
+                {% if recent_bookings %}
+                    <ul class="list-group list-group-flush">
+                        {% for booking in recent_bookings %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ booking.buyer.first_name }} {{ booking.buyer.last_name }}</strong><br>
+                                <small>{{ booking.date.strftime('%b %d, %Y %I:%M %p') }}</small>
+                            </div>
+                            {% if booking.status == 'completed' %}
+                                <span class="badge bg-success">{{ booking.status|capitalize }}</span>
+                            {% elif booking.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">{{ booking.status|capitalize }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ booking.status|capitalize }}</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No recent bookings.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Feedback -->
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3 h-100">
+                <h5 class="mb-3">⭐ Recent Feedback</h5>
+                {% if recent_feedback %}
+                    <ul class="list-group list-group-flush">
+                        {% for feedback in recent_feedback %}
+                        <li class="list-group-item">
+                            <strong>{{ feedback.reviewer.first_name }} {{ feedback.reviewer.last_name }}</strong> rated
+                            <strong>{{ feedback.rating }}/5</strong>
+                            <p>{{ feedback.comment }}</p>
+                            <small class="text-muted">{{ feedback.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No recent feedback found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

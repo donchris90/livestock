@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<h2 class="mt-4">Manage Logistics Providers</h2>
+<table class="table table-striped mt-3">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>Registered On</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for provider in logistics %}
+    <tr>
+      <td>{{ provider.first_name }} {{ provider.last_name }}</td>
+      <td>{{ provider.email }}</td>
+      <td>{{ provider.phone }}</td>
+      <td>{{ provider.created_at.strftime('%Y-%m-%d') if provider.created_at else '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

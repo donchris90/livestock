@@ -1,0 +1,23 @@
+<h1>Platform Revenue Overview</h1>
+
+<h3>Total Profit: ₦{{ total_profit }}</h3>
+
+<h4>Wallet Balance: ₦{{ wallet.balance }}</h4>
+<h4>Total Earned: ₦{{ wallet.total_earned }}</h4>
+
+<table class="table table-bordered mt-4">
+    <thead>
+        <tr>
+            <th>Source</th>
+            <th>Amount (₦)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for source, amount in profit_breakdown %}
+        <tr>
+            <td>{{ source.capitalize() }}</td>
+            <td>{{ amount }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

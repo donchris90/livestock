@@ -1,0 +1,20 @@
+<form method="POST" action="{{ url_for('escrow.initiate_escrow', product_id=product.id) }}">
+
+  <input type="number" name="amount" id="amount" required placeholder="Enter amount">
+  <div id="fee-preview"></div>
+  <button type="submit">Confirm Escrow</button>
+</form>
+
+<script>
+  document.getElementById('amount').addEventListener('input', function () {
+    let amount = parseFloat(this.value);
+    let preview = document.getElementById('fee-preview');
+    if (!isNaN(amount)) {
+      let fee = amount * 0.02;
+      let total = amount + fee;
+      preview.innerHTML = `Escrow Fee (2%): ₦${fee.toFixed(2)}<br>Total: ₦${total.toFixed(2)}`;
+    } else {
+      preview.innerHTML = '';
+    }
+  });
+</script>

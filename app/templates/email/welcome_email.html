@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .email-container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .email-header {
+            color: #2c3e50;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        .email-body {
+            font-size: 16px;
+            color: #333;
+        }
+        .cta-button {
+            margin-top: 20px;
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #198754;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="email-header">👋 Welcome to Livestock Farm App, {{ name }}!</div>
+    <div class="email-body">
+        <p>We’re excited to have you on board.</p>
+        <p>Start by browsing livestock, connecting with agents, or uploading your own listings.</p>
+        <p>
+            <a href="{{ url_for('main.home', _external=True) }}" class="cta-button">Visit Dashboard</a>
+        </p>
+        <p>Happy Farming!<br>The Livestock Farm App Team</p>
+    </div>
+</div>
+</body>
+</html>

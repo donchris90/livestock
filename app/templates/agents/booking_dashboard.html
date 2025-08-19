@@ -1,0 +1,176 @@
+{% extends "agents/base.html" %}
+{% block title %}Agent Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>🧑‍💼 Agent Dashboard</h2>
+
+    <!-- Notifications -->
+    {% if notifications %}
+        <div class="mb-3">
+            <h5>Notifications</h5>
+            <ul class="list-group">
+                {% for note in notifications %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ note.message }}
+                        <small class="text-muted">{{ note.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if filter_type=='upcoming' %}active{% endif %}" href="{{ url_for('agents.agent_bookings', filter='upcoming') }}">Upcoming</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filter_type=='completed' %}active{% endif %}" href="{{ url_for('agents.agent_bookings', filter='completed') }}">Completed</a>
+        </li>
+    </ul>
+
+    {% if bookings.items %}
+        <ul class="list-group">
+            {% for booking in bookings.items %}
+                <li class="list-group-item mb-3 shadow-sm">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>Product:</strong> {{ booking.product.title }}<br>
+                            <strong>Buyer:</strong> {{ booking.buyer.first_name }} {{ booking.buyer.last_name }}<br>
+                            <strong>Booking Date:</strong> {{ booking.date.strftime('%b %d, %Y %I:%M %p') }}<br>
+                            {% if booking.inspection_reported_at %}
+                                <strong>Inspection Date:</strong> {{ booking.inspection_reported_at.strftime('%b %d, %Y %I:%M %p') }}<br>
+                                <strong>Inspection Report:</strong> {{ booking.inspection_report }}
+                            {% else %}
+                                <strong>Inspection Report:</strong> Not submitted yet
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            {% set s = booking.status|lower %}
+                            {% if s == 'pending' %}
+                                <span class="badge bg-secondary">Pending</span>
+                            {% elif s == 'accepted' %}
+                                <span class="badge bg-warning text-dark">Accepted</span>
+                            {% elif s == 'inspection_submitted' %}
+                                <span class="badge bg-warning text-dark">Inspection Submitted</span>
+                            {% elif s == 'buyer_confirmed' %}
+                                <span class="badge bg-success">Confirmed</span>
+                            {% elif s == 'completed' %}
+                                <span class="badge bg-primary">Completed</span>
+                            {% elif s == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-dark">{{ s }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Accept / Reject Buttons for Pending Bookings -->
+                    {% if s == 'pending' %}
+                        <form method="POST" class="mt-2 d-flex gap-2">
+                            <div style="display:none;">
+                                {{ csrf_token() }}
+                            </div>
+                            <input type="hidden" name="booking_id" value="{{ booking.id }}">
+                            <button type="submit" name="action" value="accepted" class="btn btn-success btn-sm">Accept</button>
+                            <button type="submit" name="action" value="rejected" class="btn btn-danger btn-sm">Reject</button>
+                        </form>
+                    {% endif %}
+
+                    <!-- Inline Inspection Form -->
+                    {% if s == 'accepted' and not booking.inspection_report %}
+                        <div class="mt-3 p-3 border rounded bg-light">
+                            <h6>Submit Inspection Report</h6>
+                            <div class="alert alert-warning">
+                                ⚠️ Image upload has been disabled here. Use chat to send images if needed to complete your inspection.
+                            </div>
+                            <form method="POST" action="{{ url_for('agents.submit_inspection', booking_id=booking.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="mb-2">
+                                    <label for="report-{{ booking.id }}" class="form-label">Report</label>
+                                    <textarea name="inspection_report" id="report-{{ booking.id }}" class="form-control" rows="3" placeholder="Write your inspection report here..." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm">Submit Inspection</button>
+                            </form>
+                        </div>
+                    {% endif %}
+
+                    <!-- Chat / Call / WhatsApp Buttons -->
+                    <div class="mt-2 d-flex gap-2">
+                        <a href="{{ url_for('chat.chat_with_user', receiver_id=booking.buyer.id) }}" class="btn btn-info btn-sm">💬 Chat</a>
+
+                        {% if booking.buyer.phone %}
+                            <a href="tel:{{ booking.buyer.phone }}" class="btn btn-success btn-sm">📞 Call</a>
+                            <a href="https://wa.me/{{ booking.buyer.phone }}" target="_blank" class="btn btn-success btn-sm">💚 WhatsApp</a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Feedback Section -->
+                    {% set feedback_given = booking.reviews|length > 0 %}
+                    {% if s in ['buyer_confirmed', 'completed'] %}
+                        <div class="mt-3">
+                            <h5>Feedback</h5>
+                            {% if feedback_given %}
+                                {% for review in booking.reviews %}
+                                    <div class="p-2 mb-2 bg-light rounded">
+                                        <strong>{{ review.reviewer.first_name }} {{ review.reviewer.last_name }}</strong>
+                                        rated:
+                                        {% for i in range(1,6) %}
+                                            {% if i <= review.rating %}
+                                                <span class="text-warning">&#9733;</span>
+                                            {% else %}
+                                                <span class="text-muted">&#9733;</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                        : {{ review.comment }}
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-info p-2 mb-0">Feedback not yet submitted</div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+
+        <!-- Pagination -->
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mt-3">
+                {% if bookings.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('agents.agent_bookings', filter=filter_type, page=bookings.prev_num) }}">Previous</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+
+                {% for p in bookings.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+                    {% if p %}
+                        {% if p == bookings.page %}
+                            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="{{ url_for('agents.agent_bookings', filter=filter_type, page=p) }}">{{ p }}</a></li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if bookings.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('agents.agent_bookings', filter=filter_type, page=bookings.next_num) }}">Next</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+
+    {% else %}
+        <p class="mt-3">No bookings found.</p>
+    {% endif %}
+</div>
+{% endblock %}

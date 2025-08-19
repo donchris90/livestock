@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Booking Status Update</title>
+</head>
+<body>
+    <p>Hi {{ booking.buyer.first_name }},</p>
+
+    <p>Your booking for the product "<strong>{{ booking.product.title }}</strong>" with agent
+    {{ booking.agent.first_name }} {{ booking.agent.last_name }} has been
+    <strong>{{ action }}</strong>.</p>
+
+    <p><strong>Booking Date:</strong> {{ booking.date.strftime('%b %d, %Y') }}</p>
+
+    <p>You can view your booking details by clicking the link below:</p>
+
+    <p>Thank you for using Livestock Farm App!</p>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{% extends "notifications_base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>🔔 Notifications</h3>
+  <ul class="list-group mt-3">
+   {% if notifications %}
+  <ul>
+    {% for n in notifications %}
+      <li>{{ n.message }} - {{ n.timestamp.strftime('%b %d, %Y %I:%M %p') }}</li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>You have no notifications.</p>
+{% endif %}
+
+  </ul>
+</div>
+
+
+<!-- ✅ Socket.IO and Realtime Booking Notification -->
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+  const socket = io();
+
+  socket.on('connect', () => {
+    console.log("✅ Connected to Socket.IO");
+    socket.emit('join', { user_id: "{{ current_user.id }}" });  // join user's room
+  });
+
+  socket.on('new_booking', function(data) {
+    console.log("🔔 Booking Notification:", data.message);
+    alert(data.message); // Replace with Bootstrap toast or notification popup
+  });
+</script>
+
+{% endblock %}

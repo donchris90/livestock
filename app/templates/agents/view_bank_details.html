@@ -1,0 +1,33 @@
+{% extends "agents/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-3">💳 Your Bank Accounts</h3>
+
+    {% if bank_details %}
+    <div class="row g-3">
+        {% for bank in bank_details %}
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3">
+                <h5>{{ bank.bank_name }}</h5>
+                <p><strong>Account Number:</strong> {{ bank.account_number }}</p>
+                <p><strong>Account Name:</strong> {{ bank.account_name }}</p>
+                <form method="POST" action="{{ url_for('seller_dashboard.delete_bank_account', account_id=bank.id) }}"
+                      onsubmit="return confirm('Are you sure you want to delete this account?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p>No bank accounts found. Please add one below.</p>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{{ url_for('seller_dashboard.agent_setup_payout') }}" class="btn btn-primary">
+            ➕ Add New Bank Account
+        </a>
+    </div>
+</div>
+{% endblock %}

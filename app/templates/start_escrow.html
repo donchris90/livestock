@@ -1,0 +1,6 @@
+<form method="POST" action="{{ url_for('escrow.start_payment') }}">
+    {{ form.hidden_tag() }}
+    {{ form.amount.label }} {{ form.amount(class="form-control") }}
+    {{ form.product_id(value=product.id) }}
+    {{ form.submit(class="btn btn-success mt-3") }}
+</form>

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h3>Chat with {{ user.first_name }}</h3>
+
+<div class="chat-box" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll;">
+  {% for msg in messages %}
+    <div class="{{ 'text-end' if msg.sender_id == current_user.id else 'text-start' }}">
+      <small><strong>{{ 'You' if msg.sender_id == current_user.id else user.first_name }}:</strong></small><br>
+      {{ msg.content }}
+      <hr>
+    </div>
+  {% endfor %}
+</div>
+
+<form method="POST">
+ <input id="csrf_token" name="csrf_token" type="hidden" value="...">
+  <div class="input-group mt-3">
+    <input type="text" name="message" class="form-control" placeholder="Type your message..." required>
+    <button class="btn btn-primary">Send</button>
+  </div>
+</form>
+
+{% endblock %}

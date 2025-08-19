@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Agent Profile{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Edit Agent Profile</h2>
+
+  <form method="POST" class="needs-validation" novalidate>
+    {{ csrf_token() }}
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+      <label class="form-label">Bio</label>
+      {{ form.bio(class="form-control", rows="4") }}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Specialties <small class="text-muted">(Comma-separated)</small></label>
+      {{ form.specialties(class="form-control") }}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Availability</label>
+      {{ form.availability_status(class="form-select") }}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">WhatsApp Link</label>
+      {{ form.whatsapp_link(class="form-control", placeholder="https://wa.me/234XXXXXXXXXX") }}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Portfolio Links <small class="text-muted">(Comma-separated URLs)</small></label>
+      {{ form.portfolio_links(class="form-control") }}
+    </div>
+
+    <div class="form-check mb-3">
+      {{ form.verified(class="form-check-input") }}
+      <label class="form-check-label">Verified</label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Update Profile</button>
+    <a href="{{ url_for('dashboard.my_dashboard') }}" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+</div>
+{% endblock %}

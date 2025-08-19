@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">🔐 My Escrow Transactions as Buyer</h2>
+
+  {% if current_user.buyer_escrows %}
+    <div class="list-group">
+      {% for escrow in current_user.buyer_escrows %}
+        <div class="list-group-item mb-3 border rounded shadow-sm p-3">
+          <h5 class="mb-2">
+            🛒 <a href="{{ url_for('seller_dashboard.product_detail', product_id=escrow.product.id) }}">
+
+              {{ escrow.product.title }}
+            </a>
+          </h5>
+
+          <p class="mb-1">
+            👤 Seller: {{ escrow.seller.full_name if escrow.seller else 'N/A' }} <br>
+            💰 Total Paid: ₦{{ escrow.total_amount }} <br>
+            📦 Status:
+            <span class="badge bg-{{ 'success' if escrow.status == 'completed' else 'warning' if escrow.status == 'pending' else 'secondary' }}">
+              {{ escrow.status|capitalize }}
+            </span>
+          </p>
+
+          <a href="{{ url_for('escrow.view_escrow', escrow_id=escrow.id) }}" class="btn btn-outline-primary btn-sm mt-2">
+            View Full Details
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">You have no escrow transactions yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

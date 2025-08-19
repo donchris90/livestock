@@ -1,0 +1,76 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">🚩 Flagged Users</h4>
+    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-sm btn-outline-secondary">
+      ← Back to All Users
+    </a>
+  </div>
+
+  {% if flagged_users %}
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Flag Reason</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in flagged_users %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ user.first_name }} {{ user.last_name }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.role|capitalize }}</td>
+              <td>
+                {% if user.is_verified %}
+                  <span class="badge bg-success">Verified</span>
+                {% else %}
+                  <span class="badge bg-secondary">Unverified</span>
+                {% endif %}
+              </td>
+              <td>{{ user.flag_reason or "N/A" }}</td>
+              <td>
+                <!-- Verify/Unverify -->
+                {% if not user.is_verified %}
+                <form action="{{ url_for('admin.verify_user', user_id=user.id) }}" method="post" style="display:inline;">
+                  <button class="btn btn-sm btn-success">✔ Verify</button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('admin.unverify_user', user_id=user.id) }}" method="post" style="display:inline;">
+                  <button class="btn btn-sm btn-warning">❌ Unverify</button>
+                </form>
+                {% endif %}
+
+                <!-- Suspend -->
+                {% if user.is_active %}
+                <form action="{{ url_for('admin.suspend_user', user_id=user.id) }}" method="post" style="display:inline;">
+                  <button class="btn btn-sm btn-outline-danger">🚫 Suspend</button>
+                </form>
+                {% endif %}
+
+                <!-- Unflag -->
+                <form action="{{ url_for('admin.unflag_user', user_id=user.id) }}" method="post" style="display:inline;">
+                  <button class="btn btn-sm btn-outline-dark">🚩 Unflag</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center">
+      No flagged users at the moment.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

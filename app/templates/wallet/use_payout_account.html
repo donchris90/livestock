@@ -1,0 +1,13 @@
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="form-group">
+        {{ form.payout_account.label }}
+        {{ form.payout_account(class="form-control") }}
+        {% for error in form.payout_account.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    {{ form.submit(class="btn btn-primary") }}
+</form>

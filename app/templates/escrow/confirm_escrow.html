@@ -1,0 +1,9 @@
+<h3>Confirm Escrow Details</h3>
+<p>Product: {{ escrow.product.title }}</p>
+<p>Base Amount: ₦{{ escrow.base_amount }}</p>
+<p>Escrow Fee (2%): ₦{{ escrow.escrow_fee }}</p>
+<p><strong>Total to Pay: ₦{{ escrow.total_amount }}</strong></p>
+
+<form action="{{ url_for('escrow.pay_escrow', escrow_id=escrow.id) }}" method="GET">
+  <button type="submit" class="btn btn-success">Pay Now with Paystack</button>
+</form>

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h3>🔍 Inspections Awaiting Confirmation</h3>
+
+  {% if bookings %}
+    {% for booking in bookings %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5>Booking #{{ booking.id }} - {{ booking.product.title }}</h5>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="alert alert-info text-center">
+      😕 No inspection bookings found.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

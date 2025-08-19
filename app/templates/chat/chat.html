@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    #messages {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      background-color: #f8f9fa;
+    }
+    .message {
+      margin-bottom: 15px;
+    }
+    .me {
+      text-align: right;
+      color: #0d6efd;
+    }
+    .them {
+      text-align: left;
+      color: #198754;
+    }
+    .message small {
+      display: block;
+      margin-top: 4px;
+      color: gray;
+    }
+    .seen-status {
+      font-weight: bold;
+      display: inline-block;
+      margin-left: 8px;
+    }
+    #typing-indicator {
+      font-style: italic;
+      color: gray;
+    }
+    #preview {
+      max-height: 100px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+<div class="container mt-5">
+  <h3 class="mb-3">Chat with {{ receiver_name }}</h3>
+
+  <div id="messages">
+    {% for msg in chat_messages %}
+    <div class="message {{ 'me' if msg.sender_id == user.id else 'them' }}">
+      {% set sender_name = 'You' if msg.sender_id == user.id else receiver_name %}
+      {% if '[File]' in msg.content %}
+        {% set file_path = msg.content.replace('[File] ', '') %}
+        {% if file_path.endswith(('.png', '.jpg', '.jpeg', '.gif')) %}
+          <strong>{{ sender_name }}:</strong><br>
+          <img src="{{ file_path }}" alt="Image" class="img-fluid rounded" style="max-height: 150px;"><br>
+        {% else %}
+          <strong>{{ sender_name }}:</strong> <a href="{{ file_path }}" target="_blank">📎 Download File</a><br>
+        {% endif %}
+      {% else %}
+        <strong>{{ sender_name }}:</strong> {{ msg.content }}<br>
+      {% endif %}
+      <small class="text-muted">{{ msg.timestamp.strftime('%b %d, %Y %I:%M %p') }}</small>
+
+      {% if msg.sender_id == user.id and loop.last %}
+        {% if msg.seen %}
+          <small class="text-primary seen-status">✓✓ Seen</small>
+        {% else %}
+          <small class="text-muted seen-status">✓✓ Delivered</small>
+        {% endif %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="typing-indicator" style="display: none;">Typing...</div>
+
+  <div class="input-group mb-2">
+    <input type="text" id="messageInput" class="form-control" placeholder="Type a message...">
+    <button type="button" class="btn btn-outline-secondary" id="uploadBtn">📎</button>
+    <button type="button" class="btn btn-primary" onclick="handleSend()">Send</button>
+  </div>
+
+  <input type="file" id="fileInput" class="form-control" style="display:none">
+  <img id="preview" class="img-thumbnail" style="display:none">
+  <a href="{{ url_for('chat.inbox') }}" class="btn btn-link mt-3">📥 Go to Inbox</a>
+</div>
+
+<script>
+  const socket = io();
+  const currentUserId = {{ user.id }};
+  const receiverId = {{ receiver.id }};
+  const receiverName = '{{ receiver.first_name }} {{ receiver.last_name }}';
+  const room = `chat_${[currentUserId, receiverId].sort().join('_')}`;
+
+  const messages = document.getElementById('messages');
+  const input = document.getElementById('messageInput');
+  const fileInput = document.getElementById('fileInput');
+  const preview = document.getElementById('preview');
+  const typingIndicator = document.getElementById('typing-indicator');
+
+  socket.emit('join', { room, user_id: currentUserId });
+  socket.emit('mark_seen', { sender_id: receiverId, receiver_id: currentUserId });
+
+  input.addEventListener('input', () => {
+    socket.emit('typing', { room });
+  });
+
+  socket.on('typing', () => {
+    typingIndicator.style.display = 'block';
+    setTimeout(() => typingIndicator.style.display = 'none', 1000);
+  });
+
+  document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', function () {
+    const file = this.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    } else {
+      preview.style.display = 'none';
+    }
+  });
+
+  function handleSend() {
+    const content = input.value.trim();
+    const file = fileInput.files[0];
+
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('receiver_id', receiverId);
+
+      fetch('/chat/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.message) {
+          socket.emit('send_message', {
+            room,
+            ...data.message
+          });
+        }
+        resetInputs();
+      })
+      .catch(error => console.error("Upload failed", error));
+    } else if (content) {
+      socket.emit('send_message', {
+        room,
+        content,
+        sender_id: currentUserId,
+        receiver_id: receiverId
+      });
+      resetInputs();
+    }
+  }
+
+  socket.on('receive_message', data => {
+    const isSender = data.sender_id === currentUserId;
+    const div = document.createElement('div');
+    div.classList.add('message', isSender ? 'me' : 'them');
+
+    const senderName = isSender ? 'You' : receiverName;
+    const timestamp = data.timestamp || new Date().toLocaleString();
+
+    if (data.content.startsWith('[File]')) {
+      const fileLink = data.content.replace('[File] ', '');
+      const ext = fileLink.split('.').pop().toLowerCase();
+      if (["png", "jpg", "jpeg", "gif"].includes(ext)) {
+        div.innerHTML = `<strong>${senderName}:</strong><br><img src="${fileLink}" class="img-fluid rounded" style="max-height: 150px;"><br><small class="text-muted">${timestamp}</small>`;
+      } else {
+        div.innerHTML = `<strong>${senderName}:</strong> <a href="${fileLink}" target="_blank">📎 File</a><br><small class="text-muted">${timestamp}</small>`;
+      }
+    } else {
+      div.innerHTML = `<strong>${senderName}:</strong> ${data.content}<br><small class="text-muted">${timestamp}</small>`;
+    }
+
+    if (isSender) {
+      div.innerHTML += `<small class="text-muted seen-status">✓✓ Delivered</small>`;
+    }
+
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  });
+
+  socket.on('messages_seen', data => {
+    if (data.sender_id === currentUserId) {
+      const messageEls = document.querySelectorAll('.me');
+      if (messageEls.length > 0) {
+        const last = messageEls[messageEls.length - 1];
+        const statusEl = last.querySelector('.seen-status');
+        if (statusEl) {
+          statusEl.textContent = '✓✓ Seen';
+          statusEl.classList.remove('text-muted');
+          statusEl.classList.add('text-primary');
+        }
+      }
+    }
+  });
+
+  input.addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
+  });
+
+  function resetInputs() {
+    input.value = '';
+    fileInput.value = '';
+    preview.style.display = 'none';
+  }
+</script>
+</body>
+</html>
+
+{% endblock %}

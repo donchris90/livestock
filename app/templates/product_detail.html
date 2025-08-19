@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ product.title }} | Livestock Marketplace</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .product-img, .carousel-inner img {
+      width: 100%;
+      max-height: 450px;
+      object-fit: cover;
+      border-radius: 0.75rem;
+    }
+    .card-img-top {
+      height: 200px;
+      object-fit: cover;
+    }
+    .price {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #198754;
+    }
+    .badge-verified {
+      background-color: #198754;
+      font-size: 0.75rem;
+      color: white;
+      padding: 0.25em 0.4em;
+      border-radius: 0.25rem;
+    }
+    .product-card:hover {
+      transform: scale(1.03);
+      transition: transform 0.2s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm sticky-top">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">🐄 Livestock Market</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <form class="d-flex ms-3 my-2 my-lg-0" method="GET" action="{{ url_for('main.home') }}">
+        <input class="form-control me-2" type="search" name="q" placeholder="Search products..." value="{{ request.args.get('q', '') }}">
+        <button class="btn btn-outline-success" type="submit">Search</button>
+      </form>
+      <ul class="navbar-nav ms-auto">
+        {% if current_user.is_authenticated %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('seller_dashboard.my_dashboard') }}">My Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a></li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Sign In</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">Register</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Product Details -->
+<div class="container mt-4">
+  <div class="row">
+    <!-- Left: Product Images and Details -->
+    <div class="col-lg-8">
+      <h2 class="mb-3">{{ product.title }}</h2>
+
+      {% if product.photos and product.photos|length > 1 %}
+        <div id="carousel" class="carousel slide mb-3" data-bs-ride="carousel">
+          <div class="carousel-inner">
+            {% for photo in product.photos %}
+              <div class="carousel-item {% if loop.first %}active{% endif %}">
+                <img src="{{ url_for('static', filename=photo.replace('static/', '')) }}" class="d-block w-100 product-img" alt="Product Image" />
+              </div>
+            {% endfor %}
+          </div>
+          <button class="carousel-control-prev" type="button" data-bs-target="#carousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon"></span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#carousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon"></span>
+          </button>
+        </div>
+      {% else %}
+        <img src="{{ url_for('static', filename=product.photos[0].replace('static/', '')) if product.photos else url_for('static', filename='default.jpg') }}"
+          class="img-fluid product-img mb-3" alt="Product Image" />
+      {% endif %}
+
+      <!-- Action Buttons -->
+      <div class="d-flex flex-column flex-sm-row gap-2 mb-4">
+        <a href="{{ url_for('agents.search_agents', product_id=product.id) }}" class="btn btn-primary mt-3">
+    Find Nearby Agents
+</a>
+ <a href="{{ url_for('escrow.escrow_offer', product_id=product.id) }}" class="btn btn-primary flex-fill">Start Escrow</a>
+        {% if current_user.is_authenticated and current_user.id != product.user_id %}
+          <a href="{{ url_for('escrow.create_order', product_id=product.id) }}" class="btn btn-success flex-fill">Create Order</a>
+        {% endif %}
+      </div>
+
+      <p class="price">₦{{ "{:,.2f}".format(product.price) }}</p>
+      <p><strong>Category:</strong> {{ product.category }}</p>
+      <p><strong>Type:</strong> {{ product.type }}</p>
+      <p><strong>Quantity:</strong> {{ product.quantity }}</p>
+      <p><strong>Location:</strong>
+        {% if product.street %}{{ product.street }}, {% endif %}
+        {% if product.city %}{{ product.city }}, {% endif %}
+        {% if product.state %}{{ product.state }}{% endif %}
+      </p>
+      <p><strong>Description:</strong><br />{{ product.description }}</p>
+      <p><strong>Negotiation:</strong> {{ product.open_to_negotiation }}</p>
+      <p><strong>Views:</strong> {{ product.views or 0 }}</p>
+    </div>
+
+    <!-- Right: Seller Info -->
+    <div class="col-lg-4">
+      <div class="bg-white p-3 rounded shadow-sm mb-4">
+        <h5>Seller Info</h5>
+        <p>
+          <strong>{{ seller.company_name or (seller.first_name + ' ' + seller.last_name) }}</strong>
+          {% if seller.is_verified %}
+            <span class="badge badge-verified">Verified</span>
+          {% endif %}
+        </p>
+        <p><strong>Phone:</strong> {{ product.phone_display or seller.phone }}</p>
+        <p><strong>Last seen:</strong> {{ seller.last_seen.strftime('%b %d, %Y %I:%M %p') if seller.last_seen else 'N/A' }}</p>
+
+        <a href="https://wa.me/{{ product.phone_display or seller.phone }}" class="btn btn-success w-100 mb-2" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
+        <a href="{{ url_for('chat.chat_with_user', receiver_id=seller.id) }}" class="btn btn-outline-primary w-100 mb-2">💬 Chat Seller</a>
+
+        <form action="{{ url_for('seller_dashboard.report_product', product_id=product.id) }}" method="POST" class="mb-2">
+          <button class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('Report this product?')">🚩 Report</button>
+        </form>
+        <form action="{{ url_for('seller_dashboard.add_to_wishlist', product_id=product.id) }}" method="POST">
+          <button class="btn btn-outline-danger btn-sm w-100">❤️ Save to Wishlist</button>
+        </form>
+      </div>
+
+      {% if current_user.is_authenticated and current_user.role in ['buyer', 'seller'] and nearby_agents %}
+      <div class="bg-white p-3 rounded shadow-sm mb-4">
+
+
+        <h6>Agent Rating Summary</h6>
+        {% if total_reviews > 0 %}
+          <div>
+            {% set full_stars = average_rating|round(0, 'floor')|int %}
+            {% set empty_stars = 5 - full_stars %}
+            <span class="text-warning fs-4">
+              {% for _ in range(full_stars) %}★{% endfor %}{% for _ in range(empty_stars) %}☆{% endfor %}
+            </span>
+            <span class="text-muted ms-2">({{ total_reviews }} review{{ 's' if total_reviews != 1 else '' }})</span>
+          </div>
+        {% else %}
+          <p class="text-muted">No reviews yet.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+
+  <!-- Similar Products -->
+  <hr class="my-5" />
+  <h4>Similar Products</h4>
+  <div class="row">
+    {% for similar in similar_products %}
+      <div class="col-6 col-md-3 mb-4">
+        <div class="card product-card h-100 shadow-sm">
+          <img src="{{ url_for('static', filename=similar.photos[0].replace('static/', '')) if similar.photos else url_for('static', filename='default.jpg') }}"
+            class="card-img-top" alt="{{ similar.title }}" />
+          <div class="card-body d-flex flex-column">
+            <h6 class="card-title">{{ similar.title }}</h6>
+            <p class="price">₦{{ "{:,.2f}".format(similar.price) }}</p>
+            <a href="{{ url_for('seller_dashboard.product_detail', product_id=similar.id) }}" class="btn btn-sm btn-outline-primary mt-auto">View</a>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p class="text-muted">No similar products found.</p>
+    {% endfor %}
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

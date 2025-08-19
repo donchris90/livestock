@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h2 class="mt-4">Product Reviews</h2>
+<table class="table table-striped mt-3">
+  <thead>
+    <tr>
+      <th>User</th>
+      <th>Product</th>
+      <th>Rating</th>
+      <th>Comment</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for review in reviews %}
+    <tr>
+      <td>{{ review.user.first_name }} {{ review.user.last_name }}</td>
+      <td>{{ review.product.title }}</td>
+      <td>{{ review.rating }}</td>
+      <td>{{ review.comment }}</td>
+      <td>{{ review.created_at.strftime('%Y-%m-%d') if review.created_at else '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

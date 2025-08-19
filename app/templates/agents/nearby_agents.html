@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Nearby Agents</h2>
+
+  {% if agents %}
+    <div class="row">
+      {% for agent in agents %}
+        <div class="col-md-4 mb-3">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">{{ agent.first_name }} {{ agent.last_name }}</h5>
+              <p class="card-text">Role: {{ agent.role }}</p>
+              <p class="card-text">Distance: {{ agent.distance }} km</p>
+               </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No nearby agents found.</p>
+  {% endif %}
+</div>
+{% endblock %}

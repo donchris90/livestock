@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Escrow Orders Overview</h2>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover table-striped align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Buyer</th>
+          <th>Seller</th>
+          <th>Product</th>
+          <th>Amount</th>
+          <th>Date Created</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+       {% for escrow in escrows %}
+
+  <tr>
+    <td>{{ escrow.id }}</td>
+    <td>{{ escrow.buyer.full_name }}</td>
+    <td>{{ escrow.seller.full_name }}</td>
+    <td>{{ escrow.product.title }}</td>
+    <td>₦{{ escrow.total_amount }}</td>
+    <td>{{ escrow.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>
+  {% if escrow.status != 'paid' %}
+    <span class="badge bg-warning">Pending Payment</span>
+
+  {% elif escrow.status == 'paid' and not escrow.order_completed %}
+    <form method="POST" action="{{ url_for('admin.admin_mark_complete', escrow_id=escrow.id) }}">
+    <button type="submit" class="btn btn-success">Mark Complete & Release</button>
+</form>
+
+
+  {% elif escrow.order_completed %}
+    <span class="badge bg-success">Completed</span>
+  {% endif %}
+</td>
+
+
+  </tr>
+{% endfor %}
+
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

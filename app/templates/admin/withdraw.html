@@ -1,0 +1,12 @@
+<h3>Withdraw from Wallet</h3>
+<p>Available Balance: ₦{{ "{:,.2f}".format(admin_wallet_balance or 0) }}</p>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-2">{{ form.amount.label }} {{ form.amount(class="form-control") }}</div>
+    <div class="mb-2">{{ form.bank_name.label }} {{ form.bank_name(class="form-control") }}</div>
+    <div class="mb-2">{{ form.bank_code.label }} {{ form.bank_code(class="form-control") }}</div>
+    <div class="mb-2">{{ form.account_number.label }} {{ form.account_number(class="form-control") }}</div>
+    <div class="mb-2">{{ form.account_name.label }} {{ form.account_name(class="form-control") }}</div>
+    <button class="btn btn-primary">{{ form.submit.label }}</button>
+</form>

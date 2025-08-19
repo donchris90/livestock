@@ -1,0 +1,20 @@
+{% if pending_outcome_bookings and pending_outcome_bookings|length > 0 %}
+  <div class="alert alert-info">
+    <h5>You have {{ pending_outcome_bookings|length }} pending inspection report{{ 's' if pending_outcome_bookings|length > 1 else '' }} to submit:</h5>
+    <ul>
+      {% for booking in pending_outcome_bookings %}
+        <li>
+          Booking ID: {{ booking.id }} -
+          Date: {{ booking.booking_time.strftime('%Y-%m-%d %I:%M %p') }} -
+          <a href="{{ url_for('agents.report_booking_outcome', booking_id=booking.id) }}" class="btn btn-sm btn-primary">
+            Submit Now
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% else %}
+  <div class="alert alert-warning">
+    No pending outcomes found.
+  </div>
+{% endif %}

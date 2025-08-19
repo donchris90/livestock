@@ -1,0 +1,8 @@
+{% for plan in plans %}
+  <div class="card">
+    <h5>{{ plan.plan_name }}</h5>
+    <p>₦{{ plan.amount / 100 }}</p>
+    <p>{{ plan.duration_days }} days</p>
+    <button onclick="payWithPaystack('{{ plan.id }}', '{{ plan.amount }}')">Subscribe</button>
+  </div>
+{% endfor %}

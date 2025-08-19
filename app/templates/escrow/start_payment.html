@@ -1,0 +1,13 @@
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="form-group">
+        {{ form.amount.label }}<br>
+        {{ form.amount(class="form-control") }}
+        {% for error in form.amount.errors %}
+            <span class="text-danger">{{ error }}</span>
+        {% endfor %}
+    </div>
+
+    {{ form.submit(class="btn btn-success") }}
+</form>

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-4">Admin Revenue (Fees Collected)</h3>
+  <table class="table table-bordered table-striped">
+    <thead class="thead-dark">
+      <tr>
+        <th>#</th>
+        <th>Amount (₦)</th>
+        <th>Source</th>
+        <th>Reference</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rev in revenues %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>₦{{ rev.amount }}</td>
+        <td>{{ rev.source }}</td>
+        <td>{{ rev.reference }}</td>
+        <td>{{ rev.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="text-center">No revenue yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

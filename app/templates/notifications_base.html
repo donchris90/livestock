@@ -1,0 +1,9 @@
+{% if current_user.role == 'agent' %}
+  {% extends 'agents/base.html' %}
+{% else %}
+  {% extends 'base.html' %}
+{% endif %}
+
+{% block content %}
+  {% block inner_content %}{% endblock %}
+{% endblock %}

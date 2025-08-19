@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="mb-4">My Logistics Bookings</h3>
+
+<!-- Status Filter -->
+<form method="get" class="mb-3">
+  <select name="status" onchange="this.form.submit()" class="form-select w-auto d-inline-block">
+    <option value="">All Status</option>
+    <option value="pending" {{ 'selected' if status_filter == 'pending' }}>Pending</option>
+    <option value="completed" {{ 'selected' if status_filter == 'completed' }}>Completed</option>
+  </select>
+</form>
+
+{% if bookings %}
+  {% for booking in bookings %}
+    <div class="list-group-item mb-3 border p-3 rounded shadow-sm">
+      <strong>Booking #{{ booking.id }}</strong><br>
+
+      <strong>Logistics Agent:</strong> {{ booking.logistics.name if booking.logistics else 'N/A' }}<br>
+      <strong>Product ID:</strong> {{ booking.product_id or 'N/A' }}<br>
+      <strong>Pickup Address:</strong> {{ booking.pickup_address or 'Not Provided' }}<br>
+      <strong>Delivery Address:</strong> {{ booking.delivery_address or 'Not Provided' }}<br>
+      <strong>Distance:</strong> {{ booking.distance_km or 'N/A' }} km<br>
+      <strong>Estimated Cost:</strong> ₦{{ booking.estimated_cost or 'TBD' }}<br>
+
+      <strong>Status:</strong>
+      <span class="badge bg-{{
+        'warning text-dark' if booking.status == 'pending' else
+        'primary' if booking.status == 'accepted' else
+        'danger' if booking.status == 'rejected' else
+        'success' if booking.status == 'completed' else 'secondary'
+      }}">
+        {{ booking.status|capitalize }}
+      </span><br>
+
+      <small class="text-muted">Created: {{ booking.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+
+      <!-- Action Buttons -->
+      <div class="mt-2">
+        {% if booking.status == 'pending' %}
+          <a href="{{ url_for('logistics.cancel_booking', booking_id=booking.id) }}" class="btn btn-sm btn-danger">Cancel</a>
+        {% endif %}
+        {% if booking.logistics and booking.logistics.phone_number %}
+          <a href="https://wa.me/234{{ booking.logistics.phone_number }}" class="btn btn-sm btn-success" target="_blank">Contact Logistics</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="text-muted">No logistics bookings found.</p>
+{% endif %}
+
+
+{% endblock %}

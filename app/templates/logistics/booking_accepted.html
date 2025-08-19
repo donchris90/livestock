@@ -1,0 +1,20 @@
+<!-- templates/emails/booking_accepted.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Booking Accepted</title>
+</head>
+<body>
+  <p>Hello {{ booking.buyer.first_name }},</p>
+
+  <p>Your logistics booking (ID: <strong>{{ booking.id }}</strong>) has been <strong>accepted</strong> by {{ driver }}.</p>
+
+  <p>Pickup Address: {{ booking.pickup_address or 'N/A' }}<br>
+     Delivery Address: {{ booking.delivery_address or 'N/A' }}</p>
+
+  <p>You may now contact the driver or wait for delivery updates.</p>
+
+  <p>Thank you for using our service.</p>
+</body>
+</html>

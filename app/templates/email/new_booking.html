@@ -1,0 +1,15 @@
+<p>Hi {{ agent.first_name }},</p>
+
+<p>You have a new booking request from <strong>{{ buyer.first_name }} {{ buyer.last_name }}</strong>.</p>
+
+<ul>
+  <li><strong>Date:</strong> {{ booking.date.strftime('%A, %d %B %Y') }}</li>
+  <li><strong>Time:</strong> {{ booking.time.strftime('%I:%M %p') }}</li>
+  <li><strong>Reason:</strong> {{ booking.reason or "N/A" }}</li>
+</ul>
+
+<p>
+Login to your dashboard to view and respond to this request.
+</p>
+
+<p>— Livestock Farm App</p>

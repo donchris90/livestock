@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">livestockapp</string>
+    <string name="title_activity_main">livestockapp</string>
+    <string name="package_name">com.livestockapp.app</string>
+    <string name="custom_url_scheme">com.livestockapp.app</string>
+</resources>

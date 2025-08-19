@@ -1,0 +1,115 @@
+<!-- ✅ Sidebar Filters -->
+    <div class="col-md-3">
+      <div class="sidebar">
+        <form method="GET">
+          <h5 class="mb-3">Filter Products</h5>
+
+          <!-- Category -->
+          <div class="mb-3">
+            <label class="form-label">Category</label>
+            <select name="category" class="form-select">
+  {% set selected_category = request.args.get('category') %}
+ <option value="">All Categories</option>
+<option value="cattle" {% if selected_category == 'cattle' %}selected{% endif %}>Cattle</option>
+<option value="goats" {% if selected_category == 'goats' %}selected{% endif %}>Goats</option>
+<option value="pig" {% if selected_category == 'pig' %}selected{% endif %}>Pig</option>
+<option value="poultry" {% if selected_category == 'poultry' %}selected{% endif %}>Poultry</option>
+<option value="equipment" {% if selected_category == 'equipment' %}selected{% endif %}>Farming Equipment</option>
+
+<option value="Livestock Transport & Logistics" {% if selected_category == 'Livestock Transport & Logistics' %}selected{% endif %}>Livestock Transport & Logistics</option>
+<option value="Animal Housing & Shelters" {% if selected_category == 'Animal Housing & Shelters' %}selected{% endif %}>Animal Housing & Shelters</option>
+<option value="Fertilizers & Soil Amendments" {% if selected_category == 'Fertilizers & Soil Amendments' %}selected{% endif %}>Fertilizers & Soil Amendments</option>
+<option value="Farm Produce" {% if selected_category == 'Farm Produce' %}selected{% endif %}>Farm Produce</option>
+<option value="Farming Equipment & Tools {% if selected_category == 'Farming Equipment & Tools' %}selected{% endif %}>Farming Equipment & Tools</option>
+
+<option value="Fish & Aquaculture" {% if selected_category == 'Fish & Aquaculture' %}selected{% endif %}>Fish & Aquaculture</option>
+<option value="Bees & Honey" {% if selected_category == 'Bees & Honey' %}selected{% endif %}>Bees & Honey</option>
+<option value="Animal Feed & Supplements" {% if selected_category == 'Animal Feed & Supplements' %}selected{% endif %}>Animal Feed & Supplements</option>
+<option value="Veterinary Products & Medicines" {% if selected_category == 'Veterinary Products & Medicines' %}selected{% endif %}>Veterinary Products & Medicines</option>
+<option value="Sheep" {% if selected_category == 'Sheep' %}selected{% endif %}>Sheep</option>
+<option value="Animal Breeding Services" {% if selected_category == 'Animal Breeding Services' %}selected{% endif %}>Animal Breeding Services</option>
+
+
+ </select>
+          </div>
+
+          <!-- State -->
+          <div class="mb-3">
+             <label class="form-label">State</label>
+           <select id="state" name="state"  class="form-select">
+          <option value="">--Select State--</option>
+          <option value="Abia">Abia</option>
+          <option value="Adamawa">Adamawa</option>
+          <option value="Akwa Ibom">Akwa Ibom</option>
+          <option value="Anambra">Anambra</option>
+          <option value="Bauchi">Bauchi</option>
+          <option value="Bayelsa">Bayelsa</option>
+          <option value="Benue">Benue</option>
+          <option value="Borno">Borno</option>
+          <option value="Cross River">Cross River</option>
+          <option value="Delta">Delta</option>
+          <option value="Ebonyi">Ebonyi</option>
+          <option value="Edo">Edo</option>
+          <option value="Ekiti">Ekiti</option>
+          <option value="Enugu">Enugu</option>
+          <option value="Gombe">Gombe</option>
+          <option value="Imo">Imo</option>
+          <option value="Jigawa">Jigawa</option>
+          <option value="Kaduna">Kaduna</option>
+          <option value="Kano">Kano</option>
+          <option value="Katsina">Katsina</option>
+          <option value="Kebbi">Kebbi</option>
+          <option value="Kogi">Kogi</option>
+          <option value="Kwara">Kwara</option>
+          <option value="Lagos">Lagos</option>
+          <option value="Nasarawa">Nasarawa</option>
+          <option value="Niger">Niger</option>
+          <option value="Ogun">Ogun</option>
+          <option value="Ondo">Ondo</option>
+          <option value="Osun">Osun</option>
+          <option value="Oyo">Oyo</option>
+          <option value="Plateau">Plateau</option>
+          <option value="Rivers">Rivers</option>
+          <option value="Sokoto">Sokoto</option>
+          <option value="Taraba">Taraba</option>
+          <option value="Yobe">Yobe</option>
+          <option value="Zamfara">Zamfara</option>
+          <option value="FCT">FCT</option>
+        </select>
+          </div>
+
+          <!-- City -->
+          <div class="mb-3">
+            <label class="form-label">City / LGA</label>
+            <select id="city" name="city"  class="form-select">
+          <option value="">--Select LGA--</option>
+        </select>
+          </div>
+
+          <!-- Price Range -->
+          <div class="mb-3">
+            <label class="form-label">Min Price</label>
+            <input type="number" name="min_price" class="form-control" placeholder="₦ Min"
+              value="{{ request.args.get('min_price', '') }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Max Price</label>
+            <input type="number" name="max_price" class="form-control" placeholder="₦ Max"
+              value="{{ request.args.get('max_price', '') }}">
+          </div>
+
+          <!-- Search Field -->
+          <div class="mb-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-control" placeholder="Search products"
+              value="{{ request.args.get('search', '') }}">
+          </div>
+
+          <!-- Buttons -->
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+            <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Reset</a>
+          </div>
+        </form>
+      </div>
+    </div>

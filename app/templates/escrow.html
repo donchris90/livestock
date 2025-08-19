@@ -1,0 +1,43 @@
+<h4>{{ 'My Payments' if role == 'buyer' else 'Incoming Escrow Payments' }}</h4>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      {% if role == 'seller' %}
+        <th>Buyer</th>
+      {% endif %}
+      <th>Product</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tx in escrows %}
+    <tr>
+      {% if role == 'seller' %}
+        <td>{{ tx.buyer.first_name }} {{ tx.buyer.last_name }}</td>
+      {% endif %}
+      <td>{{ tx.product.title }}</td>
+      <td>₦{{ tx.amount }}</td>
+      <td>
+  {% if tx.status == 'PENDING' %}
+    {% if role == 'buyer' %}
+      <form method="POST" action="{{ url_for('seller_dashboard.confirm_delivery', escrow_id=tx.id) }}">
+        <button class="btn btn-sm btn-success" onclick="return confirm('Confirm delivery and release funds?')">Confirm Delivery</button>
+      </form>
+    {% else %}
+      <span class="badge bg-warning">Pending Buyer Confirmation</span>
+    {% endif %}
+  {% elif tx.status == 'RELEASED' %}
+    <span class="badge bg-success">Released</span>
+  {% endif %}
+</td>
+
+      <td>{{ tx.created_at.strftime('%Y-%m-%d') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">No escrow transactions found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

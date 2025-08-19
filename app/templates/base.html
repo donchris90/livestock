@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .navbar-brand {
+      font-weight: bold;
+      font-size: 1.3rem;
+    }
+    .news-bar {
+      background: linear-gradient(to right, #e9f5ff, #f0fbff);
+      border-top: 1px solid #d0e6f7;
+      border-bottom: 1px solid #d0e6f7;
+      padding: 0.6rem 0;
+    }
+    .news-bar .status-text {
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ✅ Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} text-center shadow-sm">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- ✅ Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4 shadow-sm">
+
+  <a class="navbar-brand" href="{{ url_for('main.home') }}">🐄 Livestock Farm App</a>
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+
+
+  <div class="collapse navbar-collapse" id="navbarMenu">
+    <ul class="navbar-nav ms-auto">
+
+      <li class="nav-item"><a class="nav-link" href="{{ url_for('seller_dashboard.my_dashboard') }}">🏠 Dashboard</a></li>
+
+<!-- Products -->
+<li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+    📦 Products
+  </a>
+  <ul class="dropdown-menu">
+    <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.upload_product') }}">➕ Upload Product</a></li>
+    <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.my_products') }}">📋 My Listings</a></li>
+     </ul>
+</li>
+      <li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+    📦 Orders
+  </a>
+  <ul class="dropdown-menu">
+    <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.my_orders') }}">📦 My Order</a></li>
+
+  <li><a href="{{ url_for('seller_dashboard.pending_orders') }}" class="dropdown-item">📦 Pending Orders</a></li>
+<li><a href="{{ url_for('seller_dashboard.completed_orders') }}" class="dropdown-item">✅ Completed Orders</a></li>
+<li class="nav-item position-relative">
+  <a href="{{ url_for('escrow.my_escrows') }}" class="dropdown-item" >
+    <i class="bi bi-shield-lock-fill me-2"></i>
+    <span>Escrow Transactions</span>
+    {% if escrow_unread_count is defined and escrow_unread_count > 0 %}
+      <span class="badge bg-danger rounded-pill ms-2">
+        {{ escrow_unread_count }}
+      </span>
+    {% else %}
+      <i class="bi bi-check-circle text-success ms-2"></i>
+    {% endif %}
+  </a>
+</li>
+  </ul>
+</li>
+
+
+
+
+
+ <li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    👤 Profile
+  </a>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+    <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.view_profile', user_id=current_user.id) }}">View Profile</a></li>
+    <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.edit_profile') }}">Edit Profile</a></li>
+   <li><a class="dropdown-item"  href="{{ url_for('seller_dashboard.view_bank_details') }}" >
+    <i class="fas fa-university"></i> Bank Details
+   </a></li>
+
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Logout</a></li>
+  </ul>
+</li>
+
+
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">🔍 My Bookings</a>
+        <ul class="dropdown-menu">
+
+          <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.booking_history') }}">📋 Agent Bookings</a></li>
+        <li >
+  <a class="dropdown-item" href="{{ url_for('logistics.view_logistics_bookings') }}">
+    <i class="bi bi-truck"></i> Logistics Booking
+  </a>
+</li>
+         <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.my_feedback') }}">💬 Feedback</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item position-relative">
+        <a class="nav-link" href="/agents/notifications">
+          <i class="bi bi-bell"></i>
+          {% if unread_count > 0 %}
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_count }}</span>
+          {% endif %}
+        </a>
+      </li>
+
+      <li class="nav-item position-relative">
+        <a class="nav-link" href="{{ url_for('chat.inbox') }}">
+          💬 Inbox
+          {% if unread_message_count > 0 %}
+            <span class="badge bg-danger">{{ unread_message_count }}</span>
+          {% endif %}
+        </a>
+      </li>
+<li class="nav-item"><a class="nav-link"  href="{{ url_for('seller_dashboard.wishlist') }}">❤️ Saved Items</a></li>
+
+      <li class="nav-item">
+        <a class="nav-link text-warning" href="{{ url_for('auth.logout') }}">🔒 Logout</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+<!-- ✅ News & Plan Info Bar -->
+<div class="news-bar">
+  <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center">
+    <div class="text-primary status-text mb-2 mb-md-0">
+      {% if current_user.is_authenticated %}
+        {% set plan = current_user.subscription_plan or 'Free' %}
+        {% set current_count = current_user.products|length %}
+
+        <div class="alert alert-info p-2 mb-0">
+          📦 Plan: {{ plan }} | 🧾 {{ current_count }}  products uploaded
+        </div>
+      {% endif %}
+    </div>
+
+
+
+
+    <div class="text-end">
+
+      {% if current_user.subscription_plan != 'Free' and current_user.subscription_expiry %}
+        {% set days_left = (current_user.subscription_expiry - current_time).days %}
+        <span class="text-success me-2">
+          🛡 Plan: <strong>{{ current_user.subscription_plan }}</strong> ({{ days_left }} days left)
+        </span>
+      {% else %}
+        <span class="text-danger me-2">⚠ You are on Free Plan</span>
+        <a href="{{ url_for('seller_dashboard.upgrade_plan') }}" class="btn btn-sm btn-warning">Upgrade</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ✅ Grace Period Warning -->
+{% if current_user.grace_end and current_user.subscription_expiry and current_time > current_user.subscription_expiry and current_time < current_user.grace_end %}
+  {% set grace_days = (current_user.grace_end - current_time).days %}
+  <div class="alert alert-warning text-center mb-0">
+    ⏳ Your plan has expired but you're in a grace period ({{ grace_days }} days left).
+    <a href="{{ url_for('seller_dashboard.upgrade_plan') }}" class="btn btn-sm btn-outline-dark ms-2">Renew Now</a>
+  </div>
+{% endif %}
+
+<!-- ✅ Plan Reminder Section -->
+{% if current_user.is_authenticated %}
+  <div class="text-center mt-3">
+    {% if current_user.subscription_plan != 'Free' and current_user.subscription_expiry %}
+      {% set days_left = (current_user.subscription_expiry - current_time).days %}
+      <p class="mb-1 text-sm">
+        📦 Current Plan: <strong>{{ current_user.subscription_plan }}</strong> ({{ days_left }} days left): <a href="{{ url_for('seller_dashboard.show_plans') }}" class="btn btn-warning btn-sm">Upgrade</a>
+      </p>
+    {% else %}
+
+    {% endif %}
+
+  </div>
+{% endif %}
+
+<!-- ✅ Toast Container -->
+<div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 9999;"></div>
+
+<!-- ✅ Page Content -->
+<main class="container mt-4">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ✅ Socket.IO -->
+<script>
+  const socket = io();
+
+  socket.on('connect', () => {
+    console.log("✅ Connected to Socket.IO");
+    socket.emit('join', { user_id: "{{ current_user.id }}" });
+  });
+
+  socket.on('new_booking', data => showToast(data.message));
+  socket.on('inspection_notification', data => showToast(data.message));
+
+  function showToast(msg) {
+    const toast = document.createElement("div");
+    toast.className = "toast align-items-center text-white bg-success border-0 show shadow-sm";
+    toast.setAttribute("role", "alert");
+    toast.setAttribute("aria-live", "assertive");
+    toast.setAttribute("aria-atomic", "true");
+    toast.style.minWidth = "280px";
+    toast.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>`;
+    document.getElementById("toast-container").appendChild(toast);
+    setTimeout(() => toast.remove(), 7000);
+  }
+</script>
+
+</body>
+</html>

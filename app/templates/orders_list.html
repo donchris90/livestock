@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">🧾 My Orders</h2>
+
+    <div class="mb-5">
+        <h4>🛒 Orders I Placed (As Buyer)</h4>
+        {% if buyer_orders %}
+        <ul class="list-group">
+            {% for order in buyer_orders %}
+            <li class="list-group-item">
+                <p><strong>Product:</strong> {{ order.product.title }}</p>
+                <p><strong>To:</strong> {{ order.seller.full_name }}</p>
+                <p><strong>Price the buyer inputted:</strong> ₦{{ order.agreed_price }}</p>
+                <p><strong>Quantity ordered:</strong> {{ order.quantity }}</p>
+                <p><strong>Status:</strong> {{ order.status.value }}</p>
+                <p><strong>Created:</strong> {{ order.created_at.strftime('%b %d, %Y') }}</p>
+
+                <a href="{{ url_for('seller_dashboard.order_detail', order_id=order.id) }}" class="btn btn-primary btn-sm mt-2">
+                    View Details
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No orders placed yet.</p>
+        {% endif %}
+    </div>
+
+    <div>
+        <h4>📦 Orders I Received (As Seller)</h4>
+        {% if seller_orders %}
+        <ul class="list-group">
+            {% for order in seller_orders %}
+            <li class="list-group-item">
+                <p><strong>Product:</strong> {{ order.product.title }}</p>
+                <p><strong>From:</strong> {{ order.buyer.full_name }}</p>
+                <p><strong>Price:</strong> ₦{{ order.agreed_price }}</p>
+                <p><strong>Status:</strong> <span class="badge bg-success text-white">{{ order.status.value }}</span></p>
+                <small class="text-muted">Created: {{ order.created_at.strftime('%b %d, %Y') }}</small><br>
+
+                <!-- View Details button for seller orders -->
+                <a href="{{ url_for('seller_dashboard.order_detail', order_id=order.id) }}" class="btn btn-primary btn-sm mt-2">
+                    View Details
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No orders received yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

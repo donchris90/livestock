@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h3 class="mb-4">🔐 Payment for {{ plan_name }} Plan</h3>
+
+    <h4 class="mb-3">Amount: ₦{{ amount }}</h4>
+    <p class="mb-4">Email: {{ email }}</p>
+
+    <!-- Paystack Payment Button -->
+    <button id="payBtn"
+        class="btn btn-success"
+        data-plan="{{ plan_name }}"
+        data-email="{{ email }}">
+        Pay Now
+    </button>
+</div>
+
+<!-- Paystack and Script -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+    // Pricing logic
+    function getAmountForPlan(plan) {
+        const pricing = {
+            "Free": 0,
+            "Starter": 100,
+            "Pro": 400,
+            "Business": 500
+        };
+        return pricing[plan] || 0;
+    }
+
+    function payWithPaystack(selectedPlan, userEmail) {
+        let amount = getAmountForPlan(selectedPlan) * 100; // convert to kobo
+        if (amount <= 0) {
+            alert("Invalid or free plan selected.");
+            return;
+        }
+
+        let handler = PaystackPop.setup({
+            key: 'pk_live_fdf1dc85ceb7346d5b9cbd3ab52c42ceabeae0f8',
+            email: userEmail,
+            amount: amount,
+            currency: 'NGN',
+            metadata: {
+                custom_fields: [
+                    {
+                        display_name: "Plan",
+                        variable_name: "plan",
+                        value: selectedPlan
+                    },
+                    {
+                        display_name: "Email",
+                        variable_name: "email",
+                        value: userEmail
+                    }
+                ],
+                plan: selectedPlan,
+                email: userEmail
+            },
+            callback: function(response) {
+                alert('Payment successful. Ref: ' + response.reference);
+                window.location.href = '/verify-payment';  // Redirect after success
+            },
+            onClose: function() {
+                alert('Transaction was not completed, window closed.');
+            }
+        });
+
+        handler.openIframe();
+    }
+
+    // Ensure the button works after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        const btn = document.getElementById('payBtn');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                const selectedPlan = btn.getAttribute('data-plan');
+                const userEmail = btn.getAttribute('data-email');
+                payWithPaystack(selectedPlan, userEmail);
+            });
+        }
+    });
+</script>
+{% endblock %}

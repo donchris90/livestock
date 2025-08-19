@@ -1,0 +1,8 @@
+<h2>Test Bookings</h2>
+<ul>
+{% for booking in bookings %}
+    <li>Product ID: {{ booking.product_id }}</li>
+{% else %}
+    <li>No bookings found.</li>
+{% endfor %}
+</ul>

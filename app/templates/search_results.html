@@ -1,0 +1,6 @@
+<h4>Search Results for "{{ query }}"</h4>
+{% if products %}
+  <!-- reuse product card loop -->
+{% else %}
+  <div class="alert alert-warning">No products found for your search.</div>
+{% endif %}

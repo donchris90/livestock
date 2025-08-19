@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .navbar-nav .nav-link {
+      font-size: 0.95rem;
+      padding: 0.5rem 0.75rem;
+    }
+    .navbar-nav .dropdown-menu a {
+      font-size: 0.9rem;
+    }
+    .news-bar {
+      background: linear-gradient(to right, #e9f5ff, #f0fbff);
+      border-top: 1px solid #d0e6f7;
+      border-bottom: 1px solid #d0e6f7;
+      padding: 0.6rem 0;
+    }
+    .news-bar .status-text {
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ✅ Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{{ url_for('admin.admin_dashboard') }}">
+      <i class="bi bi-speedometer2 me-2"></i>Admin
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarAdmin">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarAdmin">
+      <!-- Left Links -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">📊 Overview</a></li>
+
+        <!-- Users Dropdown -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">👥 Users</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('admin.manage_users') }}">Manage Users</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.flagged_users') }}">Flagged Users</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.manage_users') }}?role=agent">Agents</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.manage_vets') }}">Vets</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.manage_logistics') }}">Logistics</a></li>
+          </ul>
+        </li>
+
+        <!-- Products Dropdown -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">🛒 Products</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('admin.manage_products') }}">All Products</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.flagged_products') }}">Flagged Products</a></li>
+          </ul>
+        </li>
+        <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.wallet_history') }}">💼 Wallet History</a></li>
+
+        <!-- Example for sidebar or dropdown menu -->
+<li class="nav-item">
+  <a class="nav-link" href="{{ url_for('admin.admin_escrow_dashboard') }}">
+    <i class="bi bi-shield-check"></i> Escrow Orders
+  </a>
+</li>
+
+<li class="nav-item">
+    <a class="nav-link" href="{{ url_for('admin.revenue_overview') }}">Revenue</a>
+</li>
+
+        <li><a href="{{ url_for('admin.admin_settings') }}"> Settings</a></li>
+
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('seller_dashboard.admin_subscriptions') }}">💼 Plans</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.reviews') }}">⭐ Reviews</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.reports') }}">📝 Reports</a></li>
+      </ul>
+
+      <!-- Right Side -->
+      <ul class="navbar-nav mb-2 mb-lg-0">
+        <li class="nav-item me-3">
+          <a class="nav-link position-relative" href="{{ url_for('admin.notifications') }}">
+            <i class="bi bi-bell fs-5"></i>
+            {% if unread_notifications %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                {{ unread_notifications }}
+              </span>
+            {% endif %}
+          </a>
+        </li>
+
+        <!-- Profile -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-person-circle"></i> {{ current_user.first_name or 'Admin' }}
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ url_for('admin.settings') }}">⚙️ Settings</a></li>
+            <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- ✅ Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} text-center shadow-sm">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- ✅ News & Plan Info Bar -->
+<div class="news-bar">
+  <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center">
+    <div class="text-primary status-text mb-2 mb-md-0">
+      📰 System maintenance on Sunday @ 2PM | New features launching soon!
+    </div>
+    <div class="text-end">
+      {% if current_user.subscription and current_user.subscription.is_active %}
+        <span class="text-success me-2">🛡 Plan: <strong>{{ current_user.subscription.plan|capitalize }}</strong> ({{ current_user.subscription.days_remaining() }} days left)</span>
+      {% else %}
+        <span class="text-danger me-2">⚠ Free Plan</span>
+        <a href="{{ url_for('seller_dashboard.upgrade_plan') }}" class="btn btn-sm btn-warning">Upgrade</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ✅ Grace Period or Expiry Warning -->
+{% if current_user.subscription and current_user.subscription.in_grace_period() %}
+  <div class="alert alert-warning text-center mb-0">
+    ⏳ Grace period: {{ current_user.subscription.days_remaining() }} days left.
+    <a href="{{ url_for('seller_dashboard.upgrade_plan') }}" class="btn btn-sm btn-outline-dark ms-2">Renew Now</a>
+  </div>
+{% elif current_user.subscription and current_user.subscription.days_remaining() <= 3 %}
+  <div class="alert alert-warning text-center mb-0">
+    ⚠ Plan expires in {{ current_user.subscription.days_remaining() }} day(s).
+    <a href="{{ url_for('seller_dashboard.upgrade_plan') }}" class="btn btn-sm btn-outline-dark ms-2">Upgrade</a>
+  </div>
+{% endif %}
+
+<!-- ✅ Toast Notification Container -->
+<div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 9999;"></div>
+
+<!-- ✅ Page Content -->
+<main class="container mt-4 mb-5">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ✅ Socket.IO Setup -->
+<script>
+  const socket = io();
+
+  socket.on('connect', () => {
+    console.log("✅ Connected to Socket.IO");
+    socket.emit('join', { user_id: "{{ current_user.id }}" });
+  });
+
+  socket.on('new_booking', data => showToast(data.message));
+  socket.on('inspection_notification', data => showToast(data.message));
+
+  function showToast(msg) {
+    const toast = document.createElement("div");
+    toast.className = "toast align-items-center text-white bg-success border-0 show shadow-sm";
+    toast.setAttribute("role", "alert");
+    toast.setAttribute("aria-live", "assertive");
+    toast.setAttribute("aria-atomic", "true");
+    toast.style.minWidth = "280px";
+    toast.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>`;
+    document.getElementById("toast-container").appendChild(toast);
+    setTimeout(() => toast.remove(), 7000);
+  }
+</script>
+
+</body>
+</html>

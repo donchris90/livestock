@@ -1,0 +1,79 @@
+<form method="POST" enctype="multipart/form-data">
+   {{ csrf_token() }}  <!-- ✅ ADD THIS LINE -->
+  <!-- Outcome Field -->
+  <div class="mb-3">
+    <label for="inspection_outcome" class="form-label">Inspection Outcome</label>
+    <input type="text" name="inspection_outcome" id="inspection_outcome"
+           class="form-control" required value="{{ booking.inspection_outcome or '' }}">
+  </div>
+
+  <!-- Report Field -->
+  <div class="mb-3">
+    <label for="inspection_report" class="form-label">Inspection Report</label>
+    <textarea name="inspection_report" id="inspection_report" rows="4"
+              class="form-control" required>{{ booking.inspection_report or '' }}</textarea>
+  </div>
+
+  <!-- File Upload -->
+  <div class="mb-3">
+    <label for="inspection_photos" class="form-label">Upload Inspection Photos</label>
+    <input type="file" name="inspection_photos" id="inspection_photos"
+           class="form-control" multiple accept="image/*">
+  </div>
+
+  <!-- Preview Container -->
+  <div id="preview" class="d-flex flex-wrap mb-3"></div>
+
+  <!-- Submit Button -->
+  <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+<!-- ⬇️ Add this block BELOW the form -->
+{% if booking.inspection_photos %}
+  <h5 class="mt-4">📷 Uploaded Photos:</h5>
+  <div class="d-flex flex-wrap">
+    {% for photo in booking.inspection_photos %}
+      <img src="{{ url_for('static', filename=photo.replace('static/', '')) }}"
+           class="img-thumbnail m-1" width="150">
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- JS Preview -->
+<script>
+  const input = document.getElementById('inspection_photos');
+  const preview = document.getElementById('preview');
+  let selectedFiles = [];
+
+  input.addEventListener('change', (e) => {
+    preview.innerHTML = '';
+    selectedFiles = Array.from(e.target.files);
+
+    selectedFiles.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const div = document.createElement('div');
+        div.className = 'position-relative m-2';
+        div.innerHTML = `
+          <img src="${e.target.result}" class="img-thumbnail" width="150">
+          <button type="button" class="btn-close position-absolute top-0 end-0 bg-white" data-index="${index}"></button>
+        `;
+        preview.appendChild(div);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  preview.addEventListener('click', function (e) {
+    if (e.target.classList.contains('btn-close')) {
+      const index = e.target.getAttribute('data-index');
+      selectedFiles.splice(index, 1);
+
+      const dt = new DataTransfer();
+      selectedFiles.forEach(file => dt.items.add(file));
+      input.files = dt.files;
+
+      e.target.parentElement.remove();
+    }
+  });
+</script>

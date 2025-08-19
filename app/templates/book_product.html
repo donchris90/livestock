@@ -1,0 +1,22 @@
+<form method="POST" action="{{ url_for('seller_dashboard.book_product', product_id=product.id) }}">
+  {{ form.hidden_tag() }}
+
+  <div class="mb-3">
+    {{ form.date.label }}
+    {{ form.date(class="form-control") }}
+  </div>
+
+  <div class="mb-3">
+    {{ form.time.label }}
+    {{ form.time(class="form-control") }}
+  </div>
+
+  <div class="mb-3">
+    {{ form.reason.label }}
+    {{ form.reason(class="form-control", rows=4) }}
+  </div>
+
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>

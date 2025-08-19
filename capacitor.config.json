@@ -1,0 +1,10 @@
+{
+  "appId": "com.livestock.app",
+  "appName": "LivestockApp",
+  "webDir": "static",          // optional, ignored when using server.url
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://livestockapp.onrender.com",
+    "cleartext": true
+  }
+}

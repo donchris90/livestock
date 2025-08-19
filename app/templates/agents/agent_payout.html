@@ -1,0 +1,64 @@
+{% extends "agents/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm p-4 mx-auto" style="max-width: 600px;">
+        <h3 class="mb-4 text-center">💳 Setup Payout / Bank Details</h3>
+
+        <form method="POST" action="{{ url_for('seller_dashboard.agent_setup_payout') }}">
+            {{ form.hidden_tag() }}
+
+            <!-- Bank Selection -->
+            <div class="mb-3">
+                <label for="bank_name" class="form-label">Bank</label>
+                {{ form.bank_name(class="form-select", id="bank_name") }}
+            </div>
+
+            <!-- Account Number -->
+            <div class="mb-3">
+                <label for="account_number" class="form-label">Account Number</label>
+                {{ form.account_number(class="form-control", id="account_number", placeholder="10-digit account number") }}
+            </div>
+
+            <!-- Account Name (Auto-Filled) -->
+            <div class="mb-3">
+                <label for="account_name" class="form-label">Account Name</label>
+                {{ form.account_name(class="form-control", id="account_name", readonly=True, placeholder="Auto-filled") }}
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid mt-4">
+                {{ form.submit(class="btn btn-success btn-lg") }}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById("account_number").addEventListener("blur", function () {
+    const accountNumber = this.value;
+    const bankCode = document.getElementById("bank_name").value;
+
+    if (accountNumber.length === 10 && bankCode) {
+        fetch("{{ url_for('seller_dashboard.resolve_account') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                account_number: accountNumber,
+                bank_code: bankCode
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById("account_name").value = data.account_name;
+            } else {
+                alert("Failed to resolve account: " + (data.message || ""));
+                document.getElementById("account_name").value = "";
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

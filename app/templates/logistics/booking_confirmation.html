@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="text-center mt-5">
+    <h2>✅ Booking Successful</h2>
+    <p>Your logistics booking has been confirmed.</p>
+    <a href="{{ url_for('logistics.search_logistics') }}" class="btn btn-primary mt-3">Back to Search</a>
+  </div>
+{% endblock %}

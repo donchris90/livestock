@@ -1,0 +1,27 @@
+<h2>Platform Revenue Overview</h2>
+<p><strong>Total Profit:</strong> ₦{{ total_profit or 0 }}</p>
+<p><strong>Wallet Balance:</strong> ₦{{ wallet.balance or 0 }}</p>
+<p><strong>Total Earned:</strong> ₦{{ wallet.total_earned or 0 }}</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Source</th>
+            <th>Description</th>
+            <th>Amount (₦)</th>
+            <th>Reference</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in profit_logs %}
+        <tr>
+            <td>{{ log.source_type|capitalize }}</td>
+            <td>{{ log.description }}</td>
+            <td>{{ log.amount }}</td>
+            <td>{{ log.reference }}</td>
+            <td>{{ log.created_at.strftime('%Y-%m-%d') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

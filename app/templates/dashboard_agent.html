@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Agent Dashboard</title>
+</head>
+<body>
+  <h2>Welcome, {{ user.username }} (Agent)</h2>
+
+  <h3>Verification Requests Assigned To You</h3>
+  {% if requests %}
+    <ul>
+      {% for req in requests %}
+        <li>
+          Product: {{ req.product.name }} <br>
+          Seller: {{ req.product.seller.username }} <br>
+          Status: {{ req.status }} <br>
+          <a href="/agent/verify/{{ req.id }}">View Details</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No verification requests assigned.</p>
+  {% endif %}
+
+  <a href="/logout">Logout</a>
+</body>
+</html>

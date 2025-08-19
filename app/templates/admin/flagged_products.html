@@ -1,0 +1,93 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Page Title and Navigation -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">🚩 Flagged Products</h4>
+    <a href="{{ url_for('admin.manage_products') }}" class="btn btn-sm btn-outline-secondary">
+      ← Back to All Products
+    </a>
+  </div>
+
+  <!-- Table -->
+  {% if flagged_products %}
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Image</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Posted By</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in flagged_products %}
+            <tr>
+              <td>{{ loop.index }}</td>
+
+              <!-- Product Image -->
+              <td style="width: 100px;">
+                {% if product.photos %}
+                  <img src="{{ url_for('static', filename=product.photos[0]) }}"
+                       alt="Product Image"
+                       class="img-thumbnail"
+                       style="max-width: 80px;">
+                {% else %}
+                  <span class="text-muted">No Image</span>
+                {% endif %}
+              </td>
+
+              <td>{{ product.title }}</td>
+              <td>{{ product.category }}</td>
+              <td>{{ product.user.first_name }} {{ product.user.last_name }}</td>
+              <td>{{ product.flag_reason or "N/A" }}</td>
+              <td>
+                {% if product.is_deleted %}
+                  <span class="badge bg-danger">Deleted</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">Flagged</span>
+                {% endif %}
+              </td>
+              <td>
+                <!-- Approve -->
+                <form action="{{ url_for('admin.approve_product', product_id=product.id) }}"
+                      method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-sm btn-success">✔ Approve</button>
+                  {{ csrf_token() }}
+                </form>
+
+                <!-- Unflag -->
+                <form action="{{ url_for('admin.unflag_product', product_id=product.id) }}"
+                      method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-sm btn-warning">🚩 Unflag</button>
+                  {{ csrf_token() }}
+                </form>
+
+                <!-- Delete -->
+                <form action="{{ url_for('admin.delete_product', product_id=product.id) }}"
+                      method="post" style="display:inline;"
+                      onsubmit="return confirm('Are you sure you want to delete this product?');">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">🗑 Delete</button>
+                  {{ csrf_token() }}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center">
+      No flagged products at the moment.
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

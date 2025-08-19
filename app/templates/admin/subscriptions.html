@@ -1,0 +1,92 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Header & Filter -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+    <h4 class="mb-3 mb-md-0">💼 All Users & Their Subscription Plans</h4>
+
+    <form method="get" class="d-flex gap-2 align-items-center">
+      <label for="plan" class="form-label me-2 mb-0">Filter by Plan:</label>
+      <select name="plan" id="plan" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="all" {{ 'selected' if selected_plan == 'all' else '' }}>All</option>
+        <option value="free" {{ 'selected' if selected_plan == 'free' else '' }}>Free</option>
+        <option value="starter" {{ 'selected' if selected_plan == 'starter' else '' }}>Starter</option>
+        <option value="pro" {{ 'selected' if selected_plan == 'pro' else '' }}>Pro</option>
+      </select>
+    </form>
+  </div>
+
+  <!-- Table -->
+  {% if users %}
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover shadow-sm align-middle">
+        <thead class="table-light text-center">
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Plan</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td class="text-center">{{ loop.index }}</td>
+              <td>{{ user.first_name }} {{ user.last_name }}</td>
+              <td>{{ user.email }}</td>
+
+              <!-- Plan -->
+              <td class="text-center">
+                {% if user.subscription %}
+                  <span class="badge bg-info text-dark">{{ user.subscription.plan|capitalize }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">Free</span>
+                {% endif %}
+              </td>
+
+              <!-- Start Date -->
+              <td class="text-center">
+                {% if user.subscription and user.subscription.start_date %}
+                  {{ user.subscription.start_date.strftime('%Y-%m-%d') }}
+                {% else %}
+                  <span class="text-muted">N/A</span>
+                {% endif %}
+              </td>
+
+              <!-- End Date -->
+              <td class="text-center">
+                {% if user.subscription and user.subscription.end_date %}
+                  {{ user.subscription.end_date.strftime('%Y-%m-%d') }}
+                {% else %}
+                  <span class="text-muted">N/A</span>
+                {% endif %}
+              </td>
+
+              <!-- Status -->
+              <td class="text-center">
+                {% if user.subscription and user.subscription.is_active %}
+                  <span class="badge bg-success">Active</span>
+                {% elif user.subscription and user.subscription.in_grace_period() %}
+                  <span class="badge bg-warning text-dark">Grace Period</span>
+                {% elif user.subscription %}
+                  <span class="badge bg-danger">Expired</span>
+                {% else %}
+                  <span class="badge bg-secondary">No Plan</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center">
+      No users found for this plan.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

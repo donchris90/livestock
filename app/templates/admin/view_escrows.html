@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>🔐 Escrow Transactions</h3>
+
+  <table class="table table-bordered table-striped">
+    <thead class="thead-dark">
+      <tr>
+        <th>Buyer</th>
+        <th>Seller</th>
+        <th>Amount</th>
+        <th>Escrow Fee</th>
+        <th>Total Paid</th>
+        <th>Status</th>
+        <th>Payment Ref</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for esc in escrows %}
+      <tr>
+        <td>{{ esc.buyer_id }}</td>
+        <td>{{ esc.seller_id }}</td>
+        <td>₦{{ esc.agreed_amount }}</td>
+        <td>₦{{ esc.escrow_fee }}</td>
+        <td>₦{{ esc.total_paid }}</td>
+        <td>
+          {% if esc.is_released %}
+            ✅ Released
+          {% elif esc.is_paid %}
+            💰 Paid
+          {% else %}
+            ⏳ Pending
+          {% endif %}
+        </td>
+        <td>{{ esc.payment_reference }}</td>
+        <td>{{ esc.created_at.strftime('%Y-%m-%d') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

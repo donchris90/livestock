@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Farmer Dashboard</title>
+</head>
+<body>
+  <h2>Welcome, {{ user.username }} (Farmer)</h2>
+
+  <h3>Your Products</h3>
+  {% if products %}
+    <ul>
+      {% for product in products %}
+        <li>
+          <strong>{{ product.name }}</strong> - {{ product.species }} - ₦{{ product.price }} <br>
+          Location: {{ product.location }} <br>
+          Status: {{ 'Verified' if product.verified else 'Pending' }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>You have no products listed.</p>
+  {% endif %}
+
+  <a href="/logout">Logout</a>
+</body>
+</html>

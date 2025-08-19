@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4 text-center">🛡️ My Escrow Transactions</h2>
+
+  {% if buyer_escrows or seller_escrows %}
+  <div class="row">
+
+    <!-- Buyer Escrows -->
+    <div class="col-12 mb-5">
+      <div class="card shadow border-0">
+        <div class="card-header bg-primary text-white fw-bold fs-5">
+          🧾 Escrows I Sent (as Buyer)
+        </div>
+        <div class="card-body">
+          <!-- Buyer Locked Escrow Total -->
+          <div class="mb-2">
+            <strong>Escrow Locked (Funds in Escrow):</strong>
+            ₦{{ buyer_locked_total | default(0) | round(2) }}
+          </div>
+
+          {% if buyer_escrows %}
+          <div class="table-responsive">
+            <table class="table table-hover text-sm align-middle">
+              <thead class="table-light">
+                <tr class="text-nowrap">
+                  <th>📦 Product</th>
+                  <th>💰 Amount (₦)</th>
+                  <th>💸 Fee (₦)</th>
+                  <th>🧑 Seller</th>
+                  <th>📌 Status</th>
+                  <th>⚙️ Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for escrow in buyer_escrows %}
+                <tr>
+                  <td>
+                    {% if escrow.product_id %}
+  <a href="{{ url_for('seller_dashboard.product_detail', product_id=escrow.product_id) }}"
+     class="text-decoration-none fw-semibold text-dark">
+    View Product
+  </a>
+{% else %}
+  <span class="text-muted">No product linked</span>
+{% endif %}
+
+                  </td>
+                  <td>₦{{ escrow.base_amount | round(2) }}</td>
+                  <td>₦{{ escrow.escrow_fee | round(2) }}</td>
+                  <td>{{ escrow.seller_name }}</td>
+                  <td>
+                    <span class="badge bg-{{ 'success' if escrow.status == 'completed' else ('warning' if escrow.status == 'locked' else 'secondary') }}">
+                      {{ escrow.status.title() }}
+                    </span>
+                  </td>
+                  <td>
+                    {% if escrow.status == 'pending' %}
+                      <!-- Paystack Button -->
+                      <button class="btn btn-success btn-sm"
+                              onclick="payWithPaystack({{ escrow.id }}, {{ (escrow.total_amount * 100)|int }}, '{{ current_user.email }}')">
+                        Pay ₦{{ escrow.total_amount | round(2) }}
+                      </button>
+
+                      <!-- Wallet Payment -->
+                     <form action="{{ url_for('escrow.pay_via_wallet', escrow_id=escrow.id) }}" method="POST" class="d-inline">
+
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-primary btn-sm">Pay via Wallet</button>
+                      </form>
+
+                   {% elif escrow.status|lower in ['paid', 'locked'] %}
+
+                      {% if current_user.id == escrow.buyer_id and not escrow.is_released %}
+                        <form method="POST" action="{{ url_for('escrow.complete_order', escrow_id=escrow.id) }}" style="display:inline;">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <button class="btn btn-warning btn-sm" onclick="return confirm('Release funds to seller and complete order?')">
+                            Complete Order
+                          </button>
+                        </form>
+                      {% else %}
+                        <span class="badge bg-info">Paid (awaiting buyer completion)</span>
+                      {% endif %}
+                    {% elif escrow.status == 'completed' %}
+                      <span class="badge bg-success">Completed</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted">No escrow offers made yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Seller Escrows -->
+    <div class="col-12">
+      <div class="card shadow border-0">
+        <div class="card-header bg-success text-white fw-bold fs-5">
+          💼 Escrows I Received (as Seller)
+        </div>
+        <div class="card-body">
+          <!-- Seller Locked Escrow Total -->
+          <div class="mb-2">
+            <strong>Escrow Locked (Funds in Escrow):</strong>
+            ₦{{ seller_locked_total | default(0) | round(2) }}
+          </div>
+
+          {% if seller_escrows %}
+          <div class="table-responsive">
+            <table class="table table-hover text-sm align-middle">
+              <thead class="table-light">
+                <tr class="text-nowrap">
+                  <th>📦 Product</th>
+                  <th>💰 Amount (₦)</th>
+                  <th>💸 Fee (₦)</th>
+                  <th>🧑 Buyer</th>
+                  <th>📌 Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for escrow in seller_escrows %}
+                <tr>
+                  <td>
+                    <a href="{{ url_for('seller_dashboard.product_detail', product_id=escrow.product_id) }}" class="text-decoration-none fw-semibold text-dark">
+                      View Product
+                    </a>
+                  </td>
+                  <td>₦{{ escrow.base_amount | round(2) }}</td>
+                  <td>₦{{ escrow.escrow_fee | round(2) }}</td>
+                  <td>{{ escrow.buyer_name }}</td>
+                  <td>
+                    <span class="badge bg-{{ 'success' if escrow.status == 'completed' else ('warning' if escrow.status == 'locked' else 'secondary') }}">
+                      {{ escrow.status.title() }}
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted">No escrow received yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {% else %}
+  <div class="alert alert-info">
+    <p class="mb-0">You have no escrow activity yet.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Paystack JS -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+  function payWithPaystack(escrowId, amount, email) {
+    var handler = PaystackPop.setup({
+      key: "pk_live_fdf1dc85ceb7346d5b9cbd3ab52c42ceabeae0f8", // Make sure this is correct
+      email: email,
+      amount: amount,
+      currency: "NGN",
+      ref: '' + Math.floor((Math.random() * 1000000000) + 1),
+      callback: function(response) {
+        window.location.href = "{{ url_for('escrow.verify_payment', escrow_id=0) }}".replace("0", escrowId) + "?reference=" + response.reference;
+      },
+      onClose: function() {
+        alert('Transaction was not completed, window closed.');
+      }
+    });
+    handler.openIframe();
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+<!-- templates/reply_feedback.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h4>✉️ Reply to Feedback</h4>
+  <p><strong>Rating:</strong> {{ feedback.rating }} / 5</p>
+  <p><strong>Comment:</strong> {{ feedback.comment }}</p>
+
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.reply.label }}
+      {{ form.reply(class="form-control", rows=3) }}
+    </div>
+    <div class="mb-3">
+      {{ form.submit(class="btn btn-primary") }}
+    </div>
+  </form>
+</div>
+{% endblock %}

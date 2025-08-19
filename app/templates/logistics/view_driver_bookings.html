@@ -1,0 +1,65 @@
+{% extends "logistics/base.html" %}
+
+{% block content %}
+<h2 class="mb-4">My Logistics Bookings</h2>
+
+{% if bookings %}
+  <table class="table table-bordered table-striped">
+    <thead class="table-dark">
+      <tr>
+        <th>#</th>
+        <th>Sender</th>
+        <th>Receiver Address</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ booking.sender_name or "N/A" }}</td>
+        <td>{{ booking.receiver_address or booking.delivery_address or "N/A" }}</td>
+        <td>
+          {% if booking.status == 'pending' %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% elif booking.status == 'accepted' %}
+            <span class="badge bg-primary">Accepted</span>
+          {% elif booking.status == 'rejected' %}
+            <span class="badge bg-danger">Rejected</span>
+          {% elif booking.status == 'completed' %}
+            <span class="badge bg-success">Completed</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ booking.status }}</span>
+          {% endif %}
+        </td>
+        <td>{{ booking.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <a href="#" class="btn btn-sm btn-info">Track</a>
+
+          {% if booking.buyer and booking.buyer.phone %}
+            <a href="https://wa.me/234{{ booking.buyer.phone }}" target="_blank" class="btn btn-sm btn-success">Contact Buyer</a>
+          {% endif %}
+
+          {% if booking.status == 'pending' %}
+            <form action="{{ url_for('logistics.driver_accept_booking', booking_id=booking.id) }}" method="POST" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-primary">Accept</button>
+            </form>
+            <form action="{{ url_for('logistics.reject_driver_booking', booking_id=booking.id) }}" method="POST" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+            </form>
+          {% elif booking.status == 'accepted' %}
+            <form action="{{ url_for('logistics.complete_booking', booking_id=booking.id) }}" method="POST" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-success">Mark as Completed</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="alert alert-info">No logistics bookings found.</div>
+{% endif %}
+{% endblock %}

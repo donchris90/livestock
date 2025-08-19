@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Funds Released</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f8f8f8; padding: 20px;">
+  <div style="background-color: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: auto;">
+    <h2 style="color: #2a9d8f;">💸 Funds Released</h2>
+    <p>Hello {{ seller.first_name }},</p>
+    <p>We’re pleased to inform you that ₦{{ "{:,.2f}".format(amount) }} has been successfully released to your wallet for the product ID <strong>#{{ product_id }}</strong>.</p>
+
+    <p>You can now view your wallet balance or withdraw to your linked bank account from your dashboard.</p>
+
+    <p>Thank you for using <strong>FarmApp</strong>.</p>
+
+    <br>
+    <p style="font-size: 0.9em; color: gray;">This is an automated message. Do not reply.</p>
+  </div>
+</body>
+</html>

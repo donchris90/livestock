@@ -1,0 +1,48 @@
+{% extends "agents/base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <h2>Book Agent: {{ agent.first_name }} {{ agent.last_name }}</h2>
+    <p>For Product: {{ product.title }}</p>
+
+    <!-- Display form errors -->
+    {% for field, errors in form.errors.items() %}
+        <div class="alert alert-danger">
+            <strong>{{ field }}:</strong> {{ errors|join(', ') }}
+        </div>
+    {% endfor %}
+
+    <form method="POST" action="" class="mt-4">
+        {{ form.hidden_tag() }}  <!-- CSRF + hidden fields -->
+
+        <!-- Hidden product ID -->
+        {{ form.product_id }}
+
+        <!-- Booking Date -->
+        <div class="mb-3">
+            {{ form.date.label(class="form-label") }}
+            {{ form.date(class="form-control") }}
+        </div>
+
+        <!-- Message -->
+        <div class="mb-3">
+            {{ form.message.label(class="form-label") }}
+            {{ form.message(class="form-control", rows="4") }}
+        </div>
+
+        <!-- Submit -->
+        <div>
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
+
+    <!-- Optional: agent reviews -->
+    <hr>
+    <h4>Reviews</h4>
+    {% for review in reviews %}
+        <p><strong>{{ review.reviewer.first_name }}:</strong> {{ review.comment }}</p>
+    {% else %}
+        <p>No reviews yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}

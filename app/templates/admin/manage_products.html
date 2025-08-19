@@ -1,0 +1,98 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">🛠️ Manage Products</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Price</th>
+          <th>Featured</th>
+          <th>Boosted</th>
+          <th>Top</th>
+          <th>Verified Seller</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+        <tr>
+          <td>{{ product.id }}</td>
+          <td>{{ product.title }}</td>
+          <td>₦{{ "{:,.2f}".format(product.price) }}</td>
+          <td>
+            {% if product.is_featured %}
+              ✅
+            {% else %}
+              ❌
+            {% endif %}
+          </td>
+          <td>
+            {% if product.is_boosted %}
+              📈 Boosted
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if product.is_top %}
+              🏆 Top
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if product.user and product.user.is_verified %}
+              ✅ {{ product.user.first_name }}
+            {% else %}
+              ❌
+            {% endif %}
+          </td>
+          <td>
+            {% if product.is_deleted %}
+              <span class="badge bg-danger">Deleted</span>
+            {% else %}
+              <span class="badge bg-success">Active</span>
+            {% endif %}
+          </td>
+          <td class="d-flex flex-wrap gap-1">
+            <a href="{{ url_for('admin.toggle_top', product_id=product.id) }}" class="btn btn-sm btn-warning">🌟 Toggle Feature</a>
+
+
+
+            <a href="{{ url_for('admin.toggle_boost', product_id=product.id) }}"
+               class="btn btn-sm {{ 'btn-primary' if product.is_boosted else 'btn-outline-primary' }}">
+              🚀 {{ 'Unboost' if product.is_boosted else 'Boost' }}
+            </a>
+
+            <a href="{{ url_for('admin.toggle_top', product_id=product.id) }}"
+               class="btn btn-sm {{ 'btn-warning' if product.is_top else 'btn-outline-warning' }}">
+              🏆 {{ 'Unmark Top' if product.is_top else 'Top' }}
+            </a>
+
+            <a href="{{ url_for('admin.toggle_delete', product_id=product.id) }}"
+               class="btn btn-sm btn-outline-danger">🗑 Toggle Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

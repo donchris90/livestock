@@ -1,0 +1,75 @@
+{% extends "agents/base.html" %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h3>{{ agent.first_name }} {{ agent.last_name }}</h3>
+    <p><strong>Location:</strong> {{ agent.city }}, {{ agent.state }}</p>
+    <p><strong>Email:</strong> {{ agent.email }}</p>
+    <p><strong>Phone:</strong> {{ agent.phone }}</p>
+    <!-- Add more fields like profile photo, bio, services, etc. -->
+  </div>
+
+  {% if total_reviews > 0 %}
+    <div class="mt-4">
+        <h5>Agent Rating Summary</h5>
+        <div>
+            {% set full_stars = average_rating|round(0, 'floor')|int %}
+            {% set empty_stars = 5 - full_stars %}
+            <span class="text-warning fs-4">
+                {% for _ in range(full_stars) %}★{% endfor %}
+                {% for _ in range(empty_stars) %}☆{% endfor %}
+            </span>
+            <span class="text-muted ms-2">({{ total_reviews }} review{{ 's' if total_reviews != 1 else '' }})</span>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Positive Reviews -->
+{% if positive_reviews %}
+    <div class="mt-4">
+        <h6 class="text-success">Positive Reviews</h6>
+        <div class="list-group">
+            {% for review in positive_reviews %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ review.reviewer.first_name }}</strong>
+                        <small class="text-muted">{{ review.created_at.strftime('%d %b, %Y') }}</small>
+                    </div>
+                    <div class="text-warning">
+                        {% for _ in range(review.rating) %}★{% endfor %}
+                        {% for _ in range(5 - review.rating) %}☆{% endfor %}
+                    </div>
+                    <p class="mb-1">{{ review.comment }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% else %}
+    <p class="text-muted mt-2">No positive reviews yet.</p>
+{% endif %}
+
+<!-- Negative Reviews -->
+{% if negative_reviews %}
+    <div class="mt-4">
+        <h6 class="text-danger">Negative Reviews</h6>
+        <div class="list-group">
+            {% for review in negative_reviews %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ review.reviewer.first_name }}</strong>
+                        <small class="text-muted">{{ review.created_at.strftime('%d %b, %Y') }}</small>
+                    </div>
+                    <div class="text-warning">
+                        {% for _ in range(review.rating) %}★{% endfor %}
+                        {% for _ in range(5 - review.rating) %}☆{% endfor %}
+                    </div>
+                    <p class="mb-1">{{ review.comment }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% else %}
+    <p class="text-muted mt-2">No negative reviews yet.</p>
+{% endif %}
+
+{% endblock %}

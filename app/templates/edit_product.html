@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2>Edit Product</h2>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Edit Form -->
+  <form method="POST" enctype="multipart/form-data">
+    {% for field in ['title', 'type', 'state', 'city', 'quantity', 'price'] %}
+      <div class="mb-3">
+        <label class="form-label">{{ field.replace('_', ' ').capitalize() }}</label>
+        <input type="text" name="{{ field }}" class="form-control"
+               value="{{ product[field] if product[field] else '' }}" required>
+      </div>
+    {% endfor %}
+
+    <!-- Category -->
+    <div class="mb-3">
+      <label class="form-label">Category</label>
+      <select name="category" class="form-select" required>
+        {% for option in ['cattle', 'goats', 'pig', 'poultry', 'equipment'] %}
+          <option value="{{ option }}" {% if product.category == option %}selected{% endif %}>{{ option.capitalize() }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Negotiation -->
+    <div class="mb-3">
+      <label class="form-label">Open to Negotiation</label>
+      <select name="open_to_negotiation" class="form-select" required>
+        {% for choice in ['yes', 'no', 'not sure'] %}
+          <option value="{{ choice }}" {% if product.open_to_negotiation == choice %}selected{% endif %}>{{ choice.capitalize() }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Upload New Photos -->
+    <div class="mb-3">
+      <label class="form-label">Upload New Photos</label>
+      <input type="file" name="photos" id="photoInput" multiple class="form-control">
+      <div id="previewContainer" class="row mt-2"></div>
+    </div>
+
+    <div class="mb-4">
+      <button type="submit" class="btn btn-success">Save Changes</button>
+    </div>
+  </form>
+
+  <!-- Existing Photos -->
+  {% if product.photos %}
+    <h5>Existing Photos</h5>
+    <div class="row">
+   {% for photo in product.photos %}
+  <div class="mb-2">
+    <img src="{{ url_for('static', filename=photo) }}" width="150">
+    <form method="POST" action="{{ url_for('seller_dashboard.delete_photo', product_id=product.id, photo_path=photo) }}" style="display:inline;">
+        <button class="btn btn-sm btn-danger" onclick="return confirm('Delete this photo?')">Delete</button>
+    </form>
+  </div>
+{% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+  document.getElementById('photoInput').addEventListener('change', function(event) {
+    const previewContainer = document.getElementById('previewContainer');
+    previewContainer.innerHTML = '';
+    Array.from(event.target.files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const div = document.createElement('div');
+        div.className = 'col-md-4';
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.className = 'image-preview';
+        div.appendChild(img);
+        previewContainer.appendChild(div);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+{% endblock %}

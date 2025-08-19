@@ -1,0 +1,14 @@
+{
+  "appId": "com.livestockapp.app",
+  "appName": "livestockapp",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false
+    }
+  },
+  "server": {
+    "url": "https://livestockapp.onrender.com",
+    "cleartext": false
+  }
+}

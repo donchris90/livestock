@@ -1,0 +1,257 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h3 class="mb-4">📊 Admin Dashboard</h3>
+
+<div class="card shadow-sm p-3">
+  <h5>Wallet Balance</h5>
+  <h3>₦{{ "{:,.2f}".format(balance) }}</h3>
+</div>
+
+
+
+
+  <!-- Stat Cards -->
+  <div class="row g-4">
+    <div class="col-md-3">
+      <div class="card text-white bg-primary h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Total Users</h5>
+          <p class="card-text display-6">{{ user_count }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-success h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Total Products</h5>
+          <p class="card-text display-6">{{ product_count }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-dark h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Total Bookings</h5>
+          <p class="card-text display-6">{{ booking_count }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-warning h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Verified Sellers</h5>
+          <p class="card-text display-6">{{ verified_sellers }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking Status Cards -->
+  <div class="row g-4 mt-4">
+    <div class="col-md-3">
+      <div class="card bg-danger text-white shadow-sm">
+        <div class="card-body">
+          <h6 class="card-title">Pending Bookings</h6>
+          <p class="display-6">{{ pending_bookings }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white shadow-sm">
+        <div class="card-body">
+          <h6 class="card-title">Completed Bookings</h6>
+          <p class="display-6">{{ completed_bookings }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-secondary text-white shadow-sm">
+        <div class="card-body">
+          <h6 class="card-title">Flagged Users</h6>
+          <p class="display-6">{{ flagged_users }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-secondary text-white shadow-sm">
+        <div class="card-body">
+          <h6 class="card-title">Flagged Products</h6>
+          <p class="display-6">{{ flagged_products }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ <div class="container mt-4">
+  <h2 class="mb-4">💼 Admin Revenue & Wallet Overview</h2>
+
+
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <div class="card border-info shadow">
+        <div class="card-body">
+          <h5 class="card-title text-info">🛡️ Escrow Wallet (Pending Release)</h5>
+         <p class="card-text display-6">₦{{ "{:,.2f}".format(escrow_wallet or 0) }}</p>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+      <div class="card border-warning shadow">
+        <div class="card-body">
+          <h5 class="card-title text-warning">✅ Released (Available to Seller)</h5>
+          <p class="card-text display-6">₦{{ "{:,.2f}".format(released_wallet) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+      <div class="card border-success shadow">
+        <div class="card-body">
+          <h5 class="card-title text-success">💰 Commission Revenue</h5>
+          <p class="card-text display-6">₦{{ "{:,.2f}".format(commission_wallet) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+      <div class="card border-primary shadow">
+        <div class="card-body">
+          <h5 class="card-title text-primary">📄 Subscription Revenue</h5>
+          <p class="card-text display-6">₦{{ "{:,.2f}".format(subscription_wallet) }}</p>
+        </div>
+
+        <div class="card mt-3 bg-light border-success">
+  <div class="card-body">
+    <h5 class="card-title">Total Admin Revenue</h5>
+    <p class="card-text display-6 text-success">₦{{ "{:,.2f}".format(total_admin_revenue or 0) }}</p>
+
+    <!-- Withdraw Button -->
+    <form action="{{ url_for('payout.admin_withdraw') }}" method="POST">
+      <button type="submit" class="btn btn-danger mt-3">Withdraw Funds</button>
+    </form>
+  </div>
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+   <div class="col-md-6 mb-3">
+      <div class="card border-primary shadow">
+        <div class="card-body">
+          <h5 class="card-title text-primary">📢 Promotion Revenue</h5>
+          <p class="card-text display-6"> ₦{{ "{:,.2f}".format(promotion_wallet) }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- Tables -->
+  <div class="my-5">
+    <h5>🕒 Recent Users</h5>
+    <table class="table table-hover table-bordered">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in recent_users %}
+        <tr>
+          <td>{{ u.first_name }} {{ u.last_name }}</td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.role }}</td>
+          <td>{{ "Verified ✅" if u.is_verified else "Unverified ❌" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="my-5">
+    <h5>🆕 Recent Products</h5>
+    <table class="table table-hover table-bordered">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Category</th>
+          <th>Seller</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in recent_products %}
+        <tr>
+          <td>{{ p.title }}</td>
+          <td>{{ p.category }}</td>
+          <td>{{ p.user.first_name }} {{ p.user.last_name }}</td>
+          <td>
+            {% if p.is_featured %} 🌟 Featured {% elif p.boost_score > 50 %} 📈 Boosted {% else %} Regular {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  new Chart(document.getElementById('userRoleChart'), {
+    type: 'pie',
+    data: {
+      labels: {{ user_roles | safe }},
+      datasets: [{
+        data: {{ user_role_counts | safe }},
+        backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6c757d']
+      }]
+    }
+  });
+
+  new Chart(document.getElementById('productChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Featured', 'Boosted', 'Regular'],
+      datasets: [{
+        label: 'Product Count',
+        data: {{ product_status_counts | safe }},
+        backgroundColor: ['#fbc02d', '#17a2b8', '#adb5bd']
+      }]
+    }
+  });
+
+  new Chart(document.getElementById('weeklyChart'), {
+    type: 'line',
+    data: {
+      labels: {{ weekly_labels | safe }},
+      datasets: [{
+        label: 'Signups',
+        data: {{ weekly_signups | safe }},
+        fill: true,
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+        tension: 0.4
+      }]
+    }
+  });
+
+  new Chart(document.getElementById('subscriptionChart'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ subscription_stats | map(attribute=0) | list | safe }},
+      datasets: [{
+        data: {{ subscription_stats | map(attribute=1) | list | safe }},
+        backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545']
+      }]
+    }
+  });
+</script>
+{% endblock %}

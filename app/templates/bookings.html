@@ -1,0 +1,61 @@
+<h2 class="mb-4 text-xl font-bold">My Bookings</h2>
+
+<table class="table table-striped table-bordered w-100">
+  <thead class="table-dark">
+    <tr>
+      <th>Agent</th>
+      <th>Contact</th>
+      <th>Date & Time</th>
+      <th>Status</th>
+      <th>Inspection Outcome</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if bookings.items %}
+      {% for booking in bookings.items %}
+      <tr>
+        <td>{{ booking.agent.first_name }} {{ booking.agent.last_name }}</td>
+        <td>
+          {% if booking.agent.phone_number %}
+            <a href="https://wa.me/{{ booking.agent.phone_number | replace(' ', '') }}" target="_blank" class="btn btn-sm btn-success">WhatsApp</a>
+          {% else %}
+            <em>No number</em>
+          {% endif %}
+        </td>
+        <td>{{ booking.booking_time.strftime('%b %d, %Y %I:%M %p') if booking.booking_time else 'N/A' }}</td>
+        <td>
+          {% if booking.status == 'accepted' %}
+            <span class="badge bg-success">Accepted</span>
+          {% elif booking.status == 'rejected' %}
+            <span class="badge bg-danger">Rejected</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if booking.inspection_outcome %}
+            {{ booking.inspection_outcome }}
+          {% else %}
+            <em>Not reported yet</em>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr><td colspan="5" class="text-center">No bookings found.</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<!-- Pagination links -->
+<div class="mt-4 d-flex justify-content-between">
+  {% if bookings.has_prev %}
+    <a href="{{ url_for('buyer.bookings', page=bookings.prev_num) }}" class="btn btn-outline-primary btn-sm">← Previous</a>
+  {% else %}
+    <span></span>
+  {% endif %}
+
+  {% if bookings.has_next %}
+    <a href="{{ url_for('buyer.bookings', page=bookings.next_num) }}" class="btn btn-outline-primary btn-sm">Next →</a>
+  {% endif %}
+</div>

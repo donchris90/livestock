@@ -1,0 +1,18 @@
+{% extends "agents/base.html" %}
+
+{% block content %}
+<h3>🔔 Notifications</h3>
+
+{% if notifications %}
+  <ul class="list-group">
+    {% for n in notifications %}
+      <li class="list-group-item {% if not n.is_read %}fw-bold{% endif %}">
+        {{ n.message }}<br>
+        <small class="text-muted">{{ n.timestamp.strftime('%Y-%m-%d %I:%M %p') }}</small>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="alert alert-info mt-3">You have no notifications.</div>
+{% endif %}
+{% endblock %}

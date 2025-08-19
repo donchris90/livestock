@@ -1,0 +1,8 @@
+<h3>Notifications</h3>
+<ul class="list-group">
+  {% for note in notifications %}
+    <li class="list-group-item {% if not note.is_read %}list-group-item-warning{% endif %}">
+      {{ note.message }} <small class="text-muted float-end">{{ note.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+    </li>
+  {% endfor %}
+</ul>

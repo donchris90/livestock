@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+
+            <!-- Escrow Card -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0">💰 Escrow Offer for "{{ product.title }}"</h4>
+                </div>
+                <div class="card-body">
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            <label for="offer_amount" class="form-label">Offer Amount (₦)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₦</span>
+                                {{ form.offer_amount(class="form-control", placeholder="Enter your offer", id="offer_amount") }}
+                            </div>
+                            {% for error in form.offer_amount.errors %}
+                                <div class="text-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <p><strong>Escrow Fee (3%):</strong> ₦<span id="escrow_fee">0.00</span></p>
+                            <p><strong>Total Amount:</strong> ₦<span id="total_amount">0.00</span></p>
+                        </div>
+
+                        <button type="submit" class="btn btn-warning w-100 mt-3">{{ form.submit.label.text }}</button>
+                        <a href="{{ url_for('escrow.my_escrows') }}" class="btn btn-secondary w-100 mt-2">Cancel</a>
+                    </form>
+
+                    <hr>
+
+                    <p class="text-muted small">
+                        Escrow fee: 3% of your offer will be added automatically.<br>
+                        Total will be calculated as you type.
+                    </p>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const offerInput = document.getElementById('offer_amount');
+    const feeDisplay = document.getElementById('escrow_fee');
+    const totalDisplay = document.getElementById('total_amount');
+
+    function updateTotals() {
+        const offer = parseFloat(offerInput.value) || 0;
+        const fee = +(offer * 0.03).toFixed(2);
+        const total = +(offer + fee).toFixed(2);
+
+        feeDisplay.textContent = fee.toLocaleString();
+        totalDisplay.textContent = total.toLocaleString();
+    }
+
+    offerInput.addEventListener('input', updateTotals);
+    updateTotals(); // initialize on page load
+});
+</script>
+{% endblock %}

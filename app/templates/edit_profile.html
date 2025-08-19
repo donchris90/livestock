@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h3>Edit Your Profile</h3>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label>First Name</label>
+                <input type="text" name="first_name" value="{{ user.first_name }}" class="form-control">
+            </div>
+            <div class="col-md-6">
+                <label>Last Name</label>
+                <input type="text" name="last_name" value="{{ user.last_name }}" class="form-control">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label>Phone Number</label>
+            <input type="text" name="phone" value="{{ user.phone }}" class="form-control">
+        </div>
+
+         <div class="mb-3">
+            <label>Email</label>
+           <input type="email" name="email" value="{{ user.email }}" class="form-control">
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label>State</label>
+                <input type="text" name="state" value="{{ user.state }}" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label>City</label>
+                <input type="text" name="city" value="{{ user.city }}" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label>Street</label>
+                <input type="text" name="street" value="{{ user.street }}" class="form-control">
+            </div>
+        </div>
+
+      <div class="mb-3">
+    <label class="form-label">Company Name</label>
+    <input type="text" class="form-control" name="company_name" value="{{ user.company_name }}">
+</div>
+
+<div class="mb-3">
+    <label for="about" class="form-label">About Us</label>
+    <textarea class="form-control" id="about" name="about">{{ user.about or '' }}</textarea>
+</div>
+
+        <div class="mb-3">
+            <label>Profile Photo</label><br>
+            {% if user.profile_photo %}
+                <img src="{{ user.profile_photo }}" class="img-thumbnail mb-2" style="max-height: 120px;">
+            {% endif %}
+            <input type="file" name="profile_photo" class="form-control">
+        </div>
+
+        <button class="btn btn-primary">Update Profile</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>My Profile</h2>
+    <div class="row">
+        <div class="col-md-4">
+            {% if user.profile_photo %}
+                <img src="{{ user.profile_photo }}" alt="Profile Photo" class="img-thumbnail mb-3" style="max-height: 200px;">
+            {% else %}
+                <p class="text-muted">No profile image uploaded.</p>
+            {% endif %}
+        </div>
+        <div class="col-md-8">
+            <p><strong>Name:</strong> {{ user.first_name }} {{ user.last_name }}</p>
+            <p><strong>Role:</strong> {{ user.role }}</p>
+            <p><strong>Email:</strong> {{ user.email }}</p>
+            <p><strong>Phone:</strong> {{ user.phone }}</p>
+            <p><strong>Company Name:</strong> {{ user.company_name or 'Not provided' }}</p>
+            <p><strong>About Us:</strong> {{ user.about or 'Not provided' }}</p>
+            <p><strong>Address:</strong> {{ user.street }}, {{ user.city }}, {{ user.state }}</p>
+
+            <a href="{{ url_for('seller_dashboard.edit_profile') }}" class="btn btn-primary mt-3">Edit Profile</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+{% endblock %}

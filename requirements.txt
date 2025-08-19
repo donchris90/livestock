@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-JWT-Extended
+Flask-Cors
+python-dotenv
+Werkzeug
+psycopg2-binary
+eventlet
+python-dotenv
+
+

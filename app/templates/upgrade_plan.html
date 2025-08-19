@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Upgrade Plan{% endblock %}
+
+{% block content %}
+<h2 class="mb-4 text-center">Choose a Subscription Plan</h2>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+  {% for plan in plans %}
+    <div class="col">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">{{ plan.name }} <span class="text-primary">₦{{ plan.price or 0 | int }}</span></h5>
+
+ <p class="card-text mb-2">{{ plan.description or "No description available." }}</p>
+          <ul class="list-unstyled mb-3">
+            <li><strong>Duration:</strong> {{ plan.duration_days }} day{{ 's' if plan.duration_days > 1 }}</li>
+            <li><strong>Upload Limit:</strong> {{ plan.upload_limit if plan.upload_limit is not none else "Unlimited" }}</li>
+          </ul>
+          <form method="POST" action="{{ url_for('subscription.create_payment') }}" class="mt-auto">
+            <input type="hidden" name="plan_id" value="{{ plan.id }}">
+            <button type="submit" class="btn btn-primary w-100">Choose Plan</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <p class="text-center">No plans available at the moment. Please check back later.</p>
+  {% endfor %}
+</div>
+{% endblock %}
