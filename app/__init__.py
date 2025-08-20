@@ -1,4 +1,7 @@
 import os
+import eventlet  # ← Must be at the very top
+eventlet.monkey_patch()
+
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask import Flask
@@ -20,21 +23,21 @@ load_dotenv()
 csrf = CSRFProtect()
 scheduler = APScheduler()
 
-
 # ---------- Promotion Expiry Task ----------
-def expire_promotions():
-    now = datetime.utcnow()
-    products = Product.query.all()
-    for product in products:
-        if product.is_featured and product.featured_expiry and product.featured_expiry < now:
-            product.is_featured = False
-        if product.is_boosted and product.boosted_expiry and product.boosted_expiry < now:
-            product.is_boosted = False
-        if product.is_top and product.top_expiry and product.top_expiry < now:
-            product.is_top = False
-    db.session.commit()
-    print("✅ Promotions expired.")
-
+def expire_promotions(app):
+    """Expire product promotions safely inside app context."""
+    with app.app_context():
+        now = datetime.utcnow()
+        products = Product.query.all()
+        for product in products:
+            if product.is_featured and product.featured_expiry and product.featured_expiry < now:
+                product.is_featured = False
+            if product.is_boosted and product.boosted_expiry and product.boosted_expiry < now:
+                product.is_boosted = False
+            if product.is_top and product.top_expiry and product.top_expiry < now:
+                product.is_top = False
+        db.session.commit()
+        print("✅ Promotions expired.")
 
 # ---------- Promotion Payment Handler ----------
 def handle_successful_promotion_payment(promotion):
@@ -54,7 +57,6 @@ def handle_successful_promotion_payment(promotion):
     product.promotion_expiry = datetime.utcnow() + timedelta(days=promotion.days)
     db.session.commit()
 
-
 # ---------- App Factory ----------
 def create_app():
     app = Flask(__name__)
@@ -63,10 +65,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'supersecretkey')
 
     # Database (psycopg3)
-    database_url = os.environ.get(
-        'DATABASE_URL',
-        'postgresql+psycopg://livestock:UfgXHMMXLBr5y22ZaYWBOfrI99vFENvH@dpg-d28ve4mr433s73c1a2hg-a.oregon-postgres.render.com:5432/livestockdb_33g0?sslmode=require'
-    )
+    database_url = os.environ.get('DATABASE_URL')
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql+psycopg://")
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -161,7 +160,12 @@ def create_app():
     # ---------- Scheduler ----------
     scheduler.init_app(app)
     scheduler.start()
-    scheduler.add_job(id='expire_promotions', func=expire_promotions, trigger='interval', minutes=10)
+    scheduler.add_job(
+        id='expire_promotions',
+        func=lambda: expire_promotions(app),  # ← Pass app to ensure context
+        trigger='interval',
+        minutes=10
+    )
 
     # ---------- Optional: Create tables ----------
     with app.app_context():
