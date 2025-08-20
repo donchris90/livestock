@@ -24,4 +24,8 @@ class Config:
     FLUTTERWAVE_ENCRYPTION_KEY = os.getenv('FLUTTERWAVE_ENCRYPTION_KEY')
 
     PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')
+<<<<<<< HEAD
     PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
+=======
+    PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
+>>>>>>> 74c4c7e (Save work before pulling)
