@@ -9,7 +9,7 @@ Flask-WTF==1.1.1
 Flask-APScheduler==1.12.4
 python-dotenv==1.0.0
 Werkzeug==2.3.7
-psycopg[binary]==3.2.9
+psycopg2-binary==2.9.6
 Flask-SocketIO==5.5.1
 eventlet==0.40.2
 gunicorn==21.2.0
