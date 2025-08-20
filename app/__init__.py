@@ -1,26 +1,27 @@
-from flask import Flask
-from flask_login import current_user
-from flask.cli import with_appcontext
+import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import os
+from flask import Flask
+from flask.cli import with_appcontext
+from flask_wtf import CSRFProtect
+from flask_apscheduler import APScheduler
 import click
 from sqlalchemy import text
 
-from app.extensions import db, csrf, socketio, mail, login_manager, migrate
+from app.extensions import db, login_manager, socketio, mail, migrate
 from app.models import User, Product
 from app.commands import register_commands
 from app.context_processors import init_context_processors
 from app.chat.socket_events import register_chat_events
 from app.tasks.renewals import process_auto_renewals
-from flask_apscheduler import APScheduler
-from flask_wtf import CSRFProtect
 
 load_dotenv()
+
 csrf = CSRFProtect()
 scheduler = APScheduler()
 
-# ✅ Promotion Expiry Task
+
+# ---------- Promotion Expiry Task ----------
 def expire_promotions():
     now = datetime.utcnow()
     products = Product.query.all()
@@ -34,7 +35,8 @@ def expire_promotions():
     db.session.commit()
     print("✅ Promotions expired.")
 
-# ✅ Promotion Payment Handler
+
+# ---------- Promotion Payment Handler ----------
 def handle_successful_promotion_payment(promotion):
     product = Product.query.get(promotion.product_id)
     if not product:
@@ -52,21 +54,27 @@ def handle_successful_promotion_payment(promotion):
     product.promotion_expiry = datetime.utcnow() + timedelta(days=promotion.days)
     db.session.commit()
 
-# ✅ App Factory
+
+# ---------- App Factory ----------
 def create_app():
     app = Flask(__name__)
 
     # ---------- App Config ----------
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'supersecretkey')
+
+    # Database (psycopg3)
+    database_url = os.environ.get(
         'DATABASE_URL',
-        'postgresql://livestock:UfgXHMMXLBr5y22ZaYWBOfrI99vFENvH@dpg-d28ve4mr433s73c1a2hg-a.oregon-postgres.render.com:5432/livestockdb_33g0?sslmode=require'
+        'postgresql+psycopg://livestock:UfgXHMMXLBr5y22ZaYWBOfrI99vFENvH@dpg-d28ve4mr433s73c1a2hg-a.oregon-postgres.render.com:5432/livestockdb_33g0?sslmode=require'
     )
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+psycopg://")
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['WTF_CSRF_ENABLED'] = False
     app.config['INSPECTION_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static/uploads/inspection_photos')
 
-    # Mail Config
+    # ---------- Mail Config ----------
     app.config.update(
         MAIL_SERVER='smtp.gmail.com',
         MAIL_PORT=587,
@@ -76,19 +84,19 @@ def create_app():
         MAIL_DEFAULT_SENDER=os.getenv('MAIL_USERNAME'),
     )
 
-    # Paystack Config
+    # ---------- Paystack Config ----------
     app.config['PAYSTACK_SECRET_KEY'] = os.getenv('PAYSTACK_SECRET_KEY')
     app.config['PAYSTACK_PUBLIC_KEY'] = os.getenv('PAYSTACK_PUBLIC_KEY')
 
     # ---------- Initialize Extensions ----------
     db.init_app(app)
-    login_manager.init_app(app)
-    socketio.init_app(app)
     migrate.init_app(app, db)
+    login_manager.init_app(app)
+    socketio.init_app(app, cors_allowed_origins="*")
     mail.init_app(app)
     csrf.init_app(app)
 
-    # ---------- DB Check ----------
+    # ---------- DB Connection Check ----------
     with app.app_context():
         try:
             db.session.execute(text("SELECT 1"))
@@ -120,22 +128,13 @@ def create_app():
     from test11 import test_bp
     from app.routes.service_escrow import service_escrow_bp
 
-    app.register_blueprint(service_escrow_bp)
-    app.register_blueprint(logistics_bp)
-    app.register_blueprint(test_bp)
-    app.register_blueprint(main_bp)
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(chat_bp)
-    app.register_blueprint(seller_dashboard_bp)
-    app.register_blueprint(agents_bp)
-    app.register_blueprint(search_bp)
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(escrow_bp)
-    app.register_blueprint(subscription_bp)
-    app.register_blueprint(paystack_webhook_bp)
-    app.register_blueprint(payout_bp)
-    app.register_blueprint(wallet_bp)
-    app.register_blueprint(promotion_bp)
+    blueprints = [
+        service_escrow_bp, logistics_bp, test_bp, main_bp, auth_bp, chat_bp,
+        seller_dashboard_bp, agents_bp, search_bp, admin_bp, escrow_bp,
+        subscription_bp, paystack_webhook_bp, payout_bp, wallet_bp, promotion_bp
+    ]
+    for bp in blueprints:
+        app.register_blueprint(bp)
 
     # ---------- Context Processors & Socket Events ----------
     init_context_processors(app)
@@ -148,12 +147,12 @@ def create_app():
         process_auto_renewals()
     app.cli.add_command(auto_renew_command)
 
-    # ---------- Custom Commands ----------
     register_commands(app)
 
     # ---------- User Last Seen Middleware ----------
     @app.before_request
     def update_last_seen():
+        from flask_login import current_user
         if current_user.is_authenticated:
             current_user.last_seen = datetime.utcnow()
             current_user.is_online = True
