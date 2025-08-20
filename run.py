@@ -19,12 +19,3 @@ if __name__ == "__main__":
         allow_unsafe_werkzeug=True  # Needed for Flask 3.x
     )
 
-# ---------- For Render / Gunicorn ----------
-# Gunicorn command (Render start command):
-# gunicorn run:app --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT
-# Gunicorn will automatically use the `app` object exposed above
-<<<<<<< HEAD
-# SocketIO will detect Eventlet and work correctly
-=======
-# SocketIO will detect Eventlet and work correctly
->>>>>>> 74c4c7e (Save work before pulling)
