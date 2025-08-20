@@ -1314,8 +1314,6 @@ def generate_reference():
 import requests
 import uuid
 
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
-
 
 @seller_dashboard_bp.route('/start_escrow/<int:product_id>', methods=['GET', 'POST'])
 @login_required
