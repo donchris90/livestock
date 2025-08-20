@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function startTopup(amount) {
   if (!amount || amount <= 0) { alert("Enter a valid amount"); return; }
   let handler = PaystackPop.setup({
-    key: "{{ PAYSTACK_PUBLIC_KEY }}",
+    key: "pk_live_fdf1dc85ceb7346d5b9cbd3ab52c42ceabeae0f8",
     email: "{{ user.email }}",
     amount: Math.round(amount * 100),
     metadata: { user_id: {{ user.id }} },
