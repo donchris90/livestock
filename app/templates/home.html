@@ -1,325 +1,271 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Livestock Marketplace</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <script src="https://kit.fontawesome.com/a2c7c9e14a.js" crossorigin="anonymous"></script>
-    <!-- Add in <head> -->
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Livestock Marketplace</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body {background-color: #f8f9fa; font-family: Arial, sans-serif;}
+.navbar {background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+.navbar .nav-link {margin-right:10px;}
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <style>
-      .product-card .badge {
-  font-size: 0.75rem;
-  padding: 0.35em 0.6em;
-  border-radius: 0.5rem;
-  font-weight: 600;
+/* Promote Product Button */
+.promote-btn {
+  background: #28a745 !important;
+  color: #fff !important;
+  font-weight: bold;
+  border-radius: 30px;
+  padding: 6px 14px;
+  transition: 0.3s;
+}
+.promote-btn:hover {
+  background: #218838 !important;
+  color: #fff !important;
 }
 
-.badge-featured {
-  background-color: gold;
-  color: black;
-}
+.search-bar {margin: 20px 0;}
+.filter-panel {display: none; background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
 
-.badge-boosted {
-  background-color: #17a2b8;
-  color: white;
-}
+/* Product card */
+.product-card {position:relative; background:#fff; border-radius:12px; overflow:hidden; transition:0.3s; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+.product-card:hover {transform: translateY(-5px);}
+.product-card img {width:100%; height:200px; object-fit:cover;}
+.product-info {padding:12px;}
+.product-info h5 {font-size:1rem; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.price {color:#28a745; font-weight:bold; margin-bottom:3px;}
+.location {font-size:0.85rem; color:#555; margin-bottom:8px;}
+.product-actions {display:flex; justify-content:start; gap:10px; margin-top:5px;}
+.product-actions a {font-size:1.1rem; color:#333; transition:0.2s;}
+.product-actions a:hover {color:#007bff;}
 
-.badge-verified {
-  background-color: #28a745;
-  color: white;
+/* Badges and wishlist */
+.badge-overlay {position:absolute; top:10px; left:10px; display:flex; gap:5px; z-index:10;}
+.badge-overlay span {padding:3px 7px; border-radius:5px; color:#fff; font-size:0.7rem; font-weight:bold;}
+.wishlist-icon {
+  position:absolute; top:10px; right:10px;
+  background: rgba(0,0,0,0.6);
+  border-radius:50%;
+  padding:6px;
+  cursor:pointer;
+  z-index:10;
+  transition:0.2s;
 }
+.wishlist-icon i {color:#fff; font-size:14px;}
+.wishlist-icon:hover {transform: scale(1.1);}
 
-    .price {
-      font-weight: bold;
-      color: #28a745;
-    }
-    .sidebar {
-      background-color: #f8f9fa;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    .product-card {
-      transition: transform 0.2s ease-in-out;
-    }
-    .product-card:hover {
-      transform: scale(1.03);
-    }
-    .product-img {
-      height: 200px;
-      object-fit: cover;
-    }
-  </style>
+/* CTA */
+.cta-apply {background-color: #28a745; color: #fff; font-weight: bold; padding: 10px; border-radius: 8px; text-align: center; display:block; margin-bottom:20px; text-decoration:none;}
+.cta-apply:hover {background:#218838; color:#fff;}
+
+/* Footer */
+footer {background-color:#fff; padding:20px; text-align:center; margin-top:40px; box-shadow:0 -2px 4px rgba(0,0,0,0.05);}
+
+/* Mobile bottom nav */
+.bottom-nav {position:fixed; bottom:0; width:100%; background:#fff; border-top:1px solid #ddd; display:flex; justify-content:space-around; padding:10px 0; z-index:999;}
+.bottom-nav a {text-align:center; font-size:0.8rem; color:#333; text-decoration:none;}
+.bottom-nav a i {display:block; font-size:1.3rem;}
+
+/* Mobile 2 column grid */
+@media(max-width:767px){
+  .col-6-mobile {padding-left:5px; padding-right:5px; width:50%;}
+  .product-card img {height:150px;}
+  .search-bar form {flex-direction:column; gap:8px; align-items:center;}
+  .search-bar input {width:100% !important;}
+  .search-bar button {width:100%;}
+}
+</style>
 </head>
 <body>
 
-<!-- ✅ Navbar -->
-<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-light">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">🐄 Livestock Market</a>
-
-    <!-- 🔍 Search Form -->
-    <form class="d-flex ms-3 d-lg-none" method="GET" action="{{ url_for('main.home') }}">
-      <input class="form-control me-2" type="search" name="q" placeholder="Search all products..." value="{{ request.args.get('search', '') }}">
-      <button class="btn btn-outline-success" type="submit">Search</button>
-    </form>
-
-    <!-- Mobile toggle button -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <a class="navbar-brand" href="{{ url_for('main.home') }}">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Livestock Market" style="height:40px;">
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
-
-    <!-- Nav Links -->
     <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-      <ul class="navbar-nav">
+      <ul class="navbar-nav align-items-center">
+        <li class="nav-item">
+          <a class="nav-link promote-btn me-2" href="">
+            <i class="fas fa-bullhorn me-1"></i> Promote Your Product
+          </a>
+        </li>
         {% if current_user.is_authenticated %}
-          <li class="nav-item">
-            {% if current_user.is_admin %}
-              <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">Admin Dashboard</a>
-            {% elif current_user.role == 'agent' %}
-              <a class="nav-link" href="{{ url_for('agents.agent_dashboard') }}">My Profile</a>
-            {% elif current_user.role == 'vet' %}
-              <a class="nav-link" href="{{ url_for('vets.vet_dashboard') }}">My Profile</a>
-            {% elif current_user.role == 'logistics' %}
-              <a class="nav-link" href="{{ url_for('logistics.logistics_dashboard') }}">My Profile</a>
-            {% elif current_user.role in ['buyer', 'seller'] %}
-              <a class="nav-link" href="{{ url_for('seller_dashboard.my_dashboard') }}">My Profile</a>
-            {% endif %}
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('seller_dashboard.my_dashboard') }}">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a></li>
         {% else %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.login') }}">Sign In</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Sign In</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">Register</a></li>
         {% endif %}
       </ul>
     </div>
   </div>
 </nav>
 
-<!-- ✅ Main Content -->
-<div class="container-fluid mt-4">
-  <div class="row">
+<!-- Search Bar -->
+<div class="container search-bar">
+  <form method="GET" class="d-flex align-items-center gap-2 justify-content-center">
+    <input type="text" name="search" class="form-control" placeholder="Search all products..." value="{{ request.args.get('search','') }}">
+    <button type="button" class="btn btn-outline-secondary" id="toggleFilter"><i class="fas fa-filter"></i></button>
+  </form>
+</div>
 
-    <!-- ✅ Sidebar Filters -->
-    <div class="col-md-3">
-      <div class="sidebar">
-        <form method="GET">
-          <h5 class="mb-3">Filter Products</h5>
-
-          <!-- Category -->
-          <div class="mb-3">
-            <label class="form-label">Category</label>
-            <select name="category" class="form-select">
-  {% set selected_category = request.args.get('category') %}
- <option value="">All Categories</option>
-<option value="cattle" {% if selected_category == 'cattle' %}selected{% endif %}>Cattle</option>
-<option value="goats" {% if selected_category == 'goats' %}selected{% endif %}>Goats</option>
-<option value="pig" {% if selected_category == 'pig' %}selected{% endif %}>Pig</option>
-<option value="poultry" {% if selected_category == 'poultry' %}selected{% endif %}>Poultry</option>
-<option value="equipment" {% if selected_category == 'equipment' %}selected{% endif %}>Farming Equipment</option>
-
-<option value="Livestock Transport & Logistics" {% if selected_category == 'Livestock Transport & Logistics' %}selected{% endif %}>Livestock Transport & Logistics</option>
-<option value="Animal Housing & Shelters" {% if selected_category == 'Animal Housing & Shelters' %}selected{% endif %}>Animal Housing & Shelters</option>
-<option value="Fertilizers & Soil Amendments" {% if selected_category == 'Fertilizers & Soil Amendments' %}selected{% endif %}>Fertilizers & Soil Amendments</option>
-<option value="Farm Produce" {% if selected_category == 'Farm Produce' %}selected{% endif %}>Farm Produce</option>
-<option value="Farming Equipment & Tools {% if selected_category == 'Farming Equipment & Tools' %}selected{% endif %}>Farming Equipment & Tools</option>
-
-<option value="Fish & Aquaculture" {% if selected_category == 'Fish & Aquaculture' %}selected{% endif %}>Fish & Aquaculture</option>
-<option value="Bees & Honey" {% if selected_category == 'Bees & Honey' %}selected{% endif %}>Bees & Honey</option>
-<option value="Animal Feed & Supplements" {% if selected_category == 'Animal Feed & Supplements' %}selected{% endif %}>Animal Feed & Supplements</option>
-<option value="Veterinary Products & Medicines" {% if selected_category == 'Veterinary Products & Medicines' %}selected{% endif %}>Veterinary Products & Medicines</option>
-<option value="Sheep" {% if selected_category == 'Sheep' %}selected{% endif %}>Sheep</option>
-<option value="Animal Breeding Services" {% if selected_category == 'Animal Breeding Services' %}selected{% endif %}>Animal Breeding Services</option>
-
-
- </select>
-          </div>
-
-          <!-- State -->
-          <div class="mb-3">
-             <label class="form-label">State</label>
-           <select id="state" name="state"  class="form-select">
-          <option value="">--Select State--</option>
-          <option value="Abia">Abia</option>
-          <option value="Adamawa">Adamawa</option>
-          <option value="Akwa Ibom">Akwa Ibom</option>
-          <option value="Anambra">Anambra</option>
-          <option value="Bauchi">Bauchi</option>
-          <option value="Bayelsa">Bayelsa</option>
-          <option value="Benue">Benue</option>
-          <option value="Borno">Borno</option>
-          <option value="Cross River">Cross River</option>
-          <option value="Delta">Delta</option>
-          <option value="Ebonyi">Ebonyi</option>
-          <option value="Edo">Edo</option>
-          <option value="Ekiti">Ekiti</option>
-          <option value="Enugu">Enugu</option>
-          <option value="Gombe">Gombe</option>
-          <option value="Imo">Imo</option>
-          <option value="Jigawa">Jigawa</option>
-          <option value="Kaduna">Kaduna</option>
-          <option value="Kano">Kano</option>
-          <option value="Katsina">Katsina</option>
-          <option value="Kebbi">Kebbi</option>
-          <option value="Kogi">Kogi</option>
-          <option value="Kwara">Kwara</option>
-          <option value="Lagos">Lagos</option>
-          <option value="Nasarawa">Nasarawa</option>
-          <option value="Niger">Niger</option>
-          <option value="Ogun">Ogun</option>
-          <option value="Ondo">Ondo</option>
-          <option value="Osun">Osun</option>
-          <option value="Oyo">Oyo</option>
-          <option value="Plateau">Plateau</option>
-          <option value="Rivers">Rivers</option>
-          <option value="Sokoto">Sokoto</option>
-          <option value="Taraba">Taraba</option>
-          <option value="Yobe">Yobe</option>
-          <option value="Zamfara">Zamfara</option>
-          <option value="FCT">FCT</option>
+<!-- Filter Panel -->
+<div class="container filter-panel" id="filterPanel">
+  <form method="GET">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <select name="category" class="form-select">
+          {% set selected_category = request.args.get('category') %}
+          <option value="">All Categories</option>
+          <option value="cattle" {% if selected_category=='cattle' %}selected{% endif %}>Cattle</option>
+          <option value="goats" {% if selected_category=='goats' %}selected{% endif %}>Goats</option>
+          <option value="pig" {% if selected_category=='pig' %}selected{% endif %}>Pig</option>
+          <option value="poultry" {% if selected_category=='poultry' %}selected{% endif %}>Poultry</option>
         </select>
-          </div>
-
-          <!-- City -->
-          <div class="mb-3">
-            <label class="form-label">City / LGA</label>
-            <select id="city" name="city"  class="form-select">
+      </div>
+      <div class="col-md-3">
+        <select id="state" name="state" class="form-select">
+          <option value="">--Select State--</option>
+     
+  <option value="">Select State</option>
+  <option value="Abuja" {% if request.args.get('state')=='Abuja' %}selected{% endif %}>FCT</option>
+  <option value="Abia" {% if request.args.get('state')=='Abia' %}selected{% endif %}>Abia</option>
+  <option value="Adamawa" {% if request.args.get('state')=='Adamawa' %}selected{% endif %}>Adamawa</option>
+  <option value="Akwa Ibom" {% if request.args.get('state')=='Akwa Ibom' %}selected{% endif %}>Akwa Ibom</option>
+  <option value="Anambra" {% if request.args.get('state')=='Anambra' %}selected{% endif %}>Anambra</option>
+  <option value="Bauchi" {% if request.args.get('state')=='Bauchi' %}selected{% endif %}>Bauchi</option>
+  <option value="Bayelsa" {% if request.args.get('state')=='Bayelsa' %}selected{% endif %}>Bayelsa</option>
+  <option value="Benue" {% if request.args.get('state')=='Benue' %}selected{% endif %}>Benue</option>
+  <option value="Borno" {% if request.args.get('state')=='Borno' %}selected{% endif %}>Borno</option>
+  <option value="Cross River" {% if request.args.get('state')=='Cross River' %}selected{% endif %}>Cross River</option>
+  <option value="Delta" {% if request.args.get('state')=='Delta' %}selected{% endif %}>Delta</option>
+  <option value="Ebonyi" {% if request.args.get('state')=='Ebonyi' %}selected{% endif %}>Ebonyi</option>
+  <option value="Edo" {% if request.args.get('state')=='Edo' %}selected{% endif %}>Edo</option>
+  <option value="Ekiti" {% if request.args.get('state')=='Ekiti' %}selected{% endif %}>Ekiti</option>
+  <option value="Enugu" {% if request.args.get('state')=='Enugu' %}selected{% endif %}>Enugu</option>
+  <option value="Gombe" {% if request.args.get('state')=='Gombe' %}selected{% endif %}>Gombe</option>
+  <option value="Imo" {% if request.args.get('state')=='Imo' %}selected{% endif %}>Imo</option>
+  <option value="Jigawa" {% if request.args.get('state')=='Jigawa' %}selected{% endif %}>Jigawa</option>
+  <option value="Kaduna" {% if request.args.get('state')=='Kaduna' %}selected{% endif %}>Kaduna</option>
+  <option value="Kano" {% if request.args.get('state')=='Kano' %}selected{% endif %}>Kano</option>
+  <option value="Katsina" {% if request.args.get('state')=='Katsina' %}selected{% endif %}>Katsina</option>
+  <option value="Kebbi" {% if request.args.get('state')=='Kebbi' %}selected{% endif %}>Kebbi</option>
+  <option value="Kogi" {% if request.args.get('state')=='Kogi' %}selected{% endif %}>Kogi</option>
+  <option value="Kwara" {% if request.args.get('state')=='Kwara' %}selected{% endif %}>Kwara</option>
+  <option value="Lagos" {% if request.args.get('state')=='Lagos' %}selected{% endif %}>Lagos</option>
+  <option value="Nasarawa" {% if request.args.get('state')=='Nasarawa' %}selected{% endif %}>Nasarawa</option>
+  <option value="Niger" {% if request.args.get('state')=='Niger' %}selected{% endif %}>Niger</option>
+  <option value="Ogun" {% if request.args.get('state')=='Ogun' %}selected{% endif %}>Ogun</option>
+  <option value="Ondo" {% if request.args.get('state')=='Ondo' %}selected{% endif %}>Ondo</option>
+  <option value="Osun" {% if request.args.get('state')=='Osun' %}selected{% endif %}>Osun</option>
+  <option value="Oyo" {% if request.args.get('state')=='Oyo' %}selected{% endif %}>Oyo</option>
+  <option value="Plateau" {% if request.args.get('state')=='Plateau' %}selected{% endif %}>Plateau</option>
+  <option value="Rivers" {% if request.args.get('state')=='Rivers' %}selected{% endif %}>Rivers</option>
+  <option value="Sokoto" {% if request.args.get('state')=='Sokoto' %}selected{% endif %}>Sokoto</option>
+  <option value="Taraba" {% if request.args.get('state')=='Taraba' %}selected{% endif %}>Taraba</option>
+  <option value="Yobe" {% if request.args.get('state')=='Yobe' %}selected{% endif %}>Yobe</option>
+  <option value="Zamfara" {% if request.args.get('state')=='Zamfara' %}selected{% endif %}>Zamfara</option>
+</select>
+ </select>
+      </div>
+      <div class="col-md-3">
+        <select id="city" name="city" class="form-select">
           <option value="">--Select LGA--</option>
         </select>
-          </div>
-
-          <!-- Price Range -->
-          <div class="mb-3">
-            <label class="form-label">Min Price</label>
-            <input type="number" name="min_price" class="form-control" placeholder="₦ Min"
-              value="{{ request.args.get('min_price', '') }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Max Price</label>
-            <input type="number" name="max_price" class="form-control" placeholder="₦ Max"
-              value="{{ request.args.get('max_price', '') }}">
-          </div>
-
-          <!-- Search Field -->
-          <div class="mb-3">
-            <label class="form-label">Search</label>
-            <input type="text" name="search" class="form-control" placeholder="Search products"
-              value="{{ request.args.get('search', '') }}">
-          </div>
-
-          <!-- Buttons -->
-          <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-primary">Apply Filters</button>
-            <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Reset</a>
-          </div>
-        </form>
+      </div>
+      <div class="col-md-3">
+        <input type="number" name="min_price" class="form-control mb-1" placeholder="Min Price" value="{{ request.args.get('min_price','') }}">
+        <input type="number" name="max_price" class="form-control" placeholder="Max Price" value="{{ request.args.get('max_price','') }}">
       </div>
     </div>
-<div class="col-md-9">
-  <div class="row g-4">
+    <div class="mt-3">
+      <button type="submit" class="btn btn-primary">Apply Filters</button>
+      <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Reset</a>
+    </div>
+  </form>
+</div>
 
+<!-- CTA for Agent/Logistics/Vet -->
+<div class="container">
+  <a href="#" class="cta-apply">Apply to become Agent / Vet / Logistics</a>
+</div>
+
+<!-- Products -->
+<div class="container product-grid">
+  <div class="row g-3">
     {% for product in products %}
-      <div class="col-md-4 col-lg-3">
-        <div class="card h-100 shadow-sm border-0 product-card rounded-4 position-relative">
+    <div class="col-md-3 col-6-mobile">
+      <div class="product-card">
+        <!-- Top badges -->
+        <div class="badge-overlay">
+          {% if product.is_featured %}<span style="background:#f0ad4e">Featured</span>{% endif %}
+          {% if product.is_top %}<span style="background:#5bc0de">Top</span>{% endif %}
+          {% if product.is_boost %}<span style="background:#d9534f">Boost</span>{% endif %}
+        </div>
+        <!-- Wishlist -->
+        <div class="wishlist-icon"><i class="fas fa-heart"></i></div>
 
-          <!-- Product Image -->
-          <div class="position-relative">
-            {% if product.photos and product.photos[0] %}
-              <img src="{{ url_for('static', filename=product.photos[0].split('static/')[-1]) }}"
-                   class="card-img-top product-img rounded-top" alt="{{ product.title }}">
-            {% else %}
-              <img src="{{ url_for('static', filename='default.jpg') }}"
-                   class="card-img-top product-img rounded-top" alt="No image">
+        <img src="{{ url_for('static', filename=(product.photos[0].split('static/')[-1] if product.photos else 'default.jpg')) }}" alt="{{ product.title }}">
+
+        <div class="product-info">
+          <h5>{{ product.title }}</h5>
+          <div class="price">₦{{ "{:,.2f}".format(product.price) }}</div>
+          {% if product.state and product.city %}
+          <div class="location"><i class="fas fa-map-marker-alt"></i> {{ product.city }}, {{ product.state }}</div>
+          {% endif %}
+          <div class="product-actions">
+            {% if product.phone_display %}
+            <a href="https://wa.me/{{ product.phone_display | replace('0','234',1) }}" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+            <a href="tel:{{ product.phone_display }}" title="Call"><i class="fas fa-phone"></i></a>
             {% endif %}
-
-            <!-- 🔥 Promotion Badges Top-Right -->
-            {% if product.is_featured and product.featured_expiry and product.featured_expiry > now %}
-              <div class="position-absolute top-0 end-0 bg-warning text-dark fw-bold px-2 py-1 rounded-bottom-start z-1"
-                   data-bs-toggle="tooltip" title="Featured Product">🌟</div>
-            {% elif product.is_top and product.top_expiry and product.top_expiry > now %}
-              <div class="position-absolute top-0 end-0 bg-success text-white fw-bold px-2 py-1 rounded-bottom-start z-1"
-                   data-bs-toggle="tooltip" title="Top Product">📌</div>
-            {% elif product.is_boosted and product.boosted_expiry and product.boosted_expiry > now %}
-              <div class="position-absolute top-0 end-0 bg-info text-white fw-bold px-2 py-1 rounded-bottom-start z-1"
-                   data-bs-toggle="tooltip" title="Boosted for visibility">🚀</div>
-            {% endif %}
-          </div>
-
-          <!-- Card Body -->
-          <div class="card-body d-flex flex-column">
-            <h6 class="fw-bold text-truncate">{{ product.title }}</h6>
-
-            <!-- 🏷️ Promotion Label Top-Left -->
-            {% if product.is_featured and product.featured_expiry and product.featured_expiry > now %}
-
-              <div class="position-absolute top-0 start-0 bg-warning text-dark fw-bold px-2 py-1 rounded-end z-1">🌟 Featured</div>
-            {% elif product.is_top and product.top_expiry and product.top_expiry > now %}
-              <div class="position-absolute top-0 start-0 bg-success text-white fw-bold px-2 py-1 rounded-end z-1">📌 Top</div>
-            {% elif product.is_boosted and product.boosted_expiry and product.boosted_expiry > now %}
-              <div class="position-absolute top-0 start-0 bg-info text-white fw-bold px-2 py-1 rounded-end z-1">🚀 Boosted</div>
-            {% endif %}
-
-            <small class="text-muted mb-1">
-              📅 {{ product.created_at.strftime('%b %d, %Y') }}<br>
-              📍 {{ product.state }}, {{ product.city }}
-            </small>
-
-            <p class="price mt-2 mb-1">₦{{ "{:,.2f}".format(product.price) }}</p>
-            <small class="text-muted">Negotiable: {{ product.open_to_negotiation|capitalize }}</small>
-
-            {% if product.user %}
-              <small class="mt-2 text-muted">
-                👤 {{ product.user.first_name }} {{ product.user.last_name }}
-                {% if product.user.is_verified %}
-                  <i class="fas fa-check-circle text-success" data-bs-toggle="tooltip" title="Verified Seller"></i>
-                {% endif %}
-              </small>
-            {% endif %}
-
-            {% if product.user and product.user.is_verified %}
+              {% if product.user and product.user.is_verified %}
               <div class="mt-2">
                 <span class="badge bg-success" data-bs-toggle="tooltip" title="Verified seller">✅ Verified</span>
               </div>
             {% endif %}
-
-            <!-- Buttons -->
-            <div class="mt-auto d-flex flex-column gap-2 mt-3">
-              {% if product.phone_display %}
-                <a href="https://wa.me/{{ product.phone_display | replace('0', '234', 1) }}"
-                   target="_blank" class="btn btn-sm btn-success w-100">💬 WhatsApp Seller</a>
-              {% endif %}
-              <a href="tel:{{ product.phone_display }}" class="btn btn-sm btn-outline-success w-100">📞 Call Seller</a>
-              {% if product.user %}
-                <a href="{{ url_for('chat.chat_with_user', receiver_id=product.user.id) }}"
-                   class="btn btn-sm btn-outline-primary w-100">💬 Chat Seller</a>
-              {% endif %}
-              <a href="{{ url_for('seller_dashboard.product_detail', product_id=product.id) }}"
-                 class="btn btn-sm btn-dark w-100">🔍 View Details</a>
-            </div>
+            {% if product.user %}
+            <a href="{{ url_for('chat.chat_with_user', receiver_id=product.user.id) }}" title="Chat"><i class="fas fa-comment"></i></a>
+            {% endif %}
+            <a href="{{ url_for('seller_dashboard.product_detail', product_id=product.id) }}" title="View Product"><i class="fas fa-eye"></i></a>
           </div>
         </div>
       </div>
+    </div>
     {% else %}
-      <div class="col-12">
-        <div class="alert alert-warning text-center">No products found for selected filters.</div>
-      </div>
+    <div class="col-12"><div class="alert alert-warning text-center">No products found.</div></div>
     {% endfor %}
   </div>
 </div>
 
-<!-- ✅ Auto-load LGAs Script -->
+<!-- Footer -->
+<footer>
+  &copy; {{ now.year }} Livestock Marketplace. All rights reserved.
+</footer>
+
+<!-- Mobile Bottom Nav -->
+<div class="bottom-nav d-md-none">
+  <a href="{{ url_for('main.home') }}"><i class="fas fa-home"></i>Home</a>
+  <a href="{{ url_for('main.home') }}"><i class="fas fa-search"></i>Search</a>
+  <a href="{{ url_for('seller_dashboard.upload_product') }}"><i class="fas fa-plus-square"></i>Post</a>
+  <a href="{{ url_for('chat.inbox') }}"><i class="fas fa-comment-dots"></i>Chat</a>
+  <a href="{{ url_for('seller_dashboard.my_dashboard') }}"><i class="fas fa-user"></i>Profile</a>
+</div>
+
 <script>
+  // Toggle filter panel
+  const toggleBtn = document.getElementById('toggleFilter');
+  const filterPanel = document.getElementById('filterPanel');
+  toggleBtn.addEventListener('click',()=>filterPanel.style.display = filterPanel.style.display==='none'?'block':'none');
+
+  // LGA logic
+  const citySelect = document.getElementById("city");
+  const stateSelect = document.getElementById("state");
   const lgasByState = {
      "Abia": ["Aba North", "Aba South", "Arochukwu", "Bende", "Ikwuano", "Isiala Ngwa North", "Isiala Ngwa South", "Isuikwuato", "Obi Ngwa", "Ohafia", "Osisioma", "Ugwunagbo", "Ukwa East", "Ukwa West", "Umuahia North", "Umuahia South", "Umu Nneochi"],
   "Adamawa": ["Demsa", "Fufore", "Ganye", "Girei", "Gombi", "Guyuk", "Hong", "Jada", "Lamurde", "Madagali", "Maiha", "Mayo-Belwa", "Michika", "Mubi North", "Mubi South", "Numan", "Shelleng", "Song", "Toungo", "Yola North", "Yola South"],
@@ -360,36 +306,11 @@
   "Zamfara": ["Anka", "Bakura", "Birnin Magaji/Kiyaw", "Bukkuyum", "Bungudu", "Gummi", "Gusau", "Kaura Namoda", "Maradun", "Maru", "Shinkafi", "Talata Mafara", "Chafe", "Zurmi"]
 
   };
-
-  const stateSelect = document.getElementById("state");
-  const citySelect = document.getElementById("city");
-
-  stateSelect.addEventListener("change", function () {
-    const selectedState = this.value;
+  stateSelect.addEventListener('change',()=>{
     citySelect.innerHTML = '<option value="">--Select LGA--</option>';
-    if (lgasByState[selectedState]) {
-      lgasByState[selectedState].forEach(lga => {
-        const option = document.createElement("option");
-        option.value = lga;
-        option.textContent = lga;
-        citySelect.appendChild(option);
-      });
-    }
-  });
-
-  // Load LGA if state and city were already selected
-  window.addEventListener("DOMContentLoaded", () => {
-    const selectedState = "{{ request.args.get('state') }}";
-    const selectedCity = "{{ request.args.get('city') }}";
-    if (selectedState && lgasByState[selectedState]) {
-      lgasByState[selectedState].forEach(lga => {
-        const option = document.createElement("option");
-        option.value = lga;
-        option.textContent = lga;
-        if (lga === selectedCity) option.selected = true;
-        citySelect.appendChild(option);
-      });
-    }
+    if(lgasByState[stateSelect.value]) lgasByState[stateSelect.value].forEach(lga=>{
+      let opt = document.createElement('option'); opt.value=opt.textContent=lga; citySelect.appendChild(opt);
+    });
   });
 </script>
 <script>
@@ -435,8 +356,6 @@ navigator.geolocation.getCurrentPosition(pos => {
   });
 });
 </script>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
