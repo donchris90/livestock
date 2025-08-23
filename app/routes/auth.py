@@ -82,8 +82,9 @@ def register():
             city=city,
             street=street,
             phone=phone,
-            latitude=latitude,
-            longitude=longitude
+            latitude=float(latitude) if latitude else None,
+            longitude = float(longitude) if longitude else None
+
         )
         new_user.set_password(password)
 

@@ -548,34 +548,43 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * asin(sqrt(a))
     return R * c
 
-@agents_bp.route('/search-live-agents', methods=['POST'])
-def search_live_agents():
-    data = request.get_json()
-    user_lat = data.get('latitude')
-    user_lon = data.get('longitude')
+@agents_bp.route("/search-agents-live")
+@login_required
+def search_agents_live():
+    user_lat = request.args.get("latitude", type=float)
+    user_lon = request.args.get("longitude", type=float)
+    role = request.args.get("role", default="agent")
 
-    if user_lat is None or user_lon is None:
-        return jsonify([])
-
-    agents = User.query.filter_by(role='agent').filter(
+    # Base query: agents in database
+    agents = User.query.filter_by(role=role).filter(
         User.latitude.isnot(None),
         User.longitude.isnot(None)
     ).all()
 
     results = []
     for agent in agents:
-        dist = haversine(user_lat, user_lon, agent.latitude, agent.longitude)
+        dist = haversine(user_lat, user_lon, agent.latitude, agent.longitude) if user_lat and user_lon else None
+        online = agent.last_seen and (datetime.utcnow() - agent.last_seen) < timedelta(minutes=5)
         results.append({
-            'id': agent.id,
-            'name': f"{agent.first_name} {agent.last_name}",
-            'state': agent.state,
-            'city': agent.city,
-            'distance_km': round(dist, 2),
-            'is_online': agent.is_online
+            "id": agent.id,
+            "full_name": f"{agent.first_name} {agent.last_name}",
+            "phone": agent.phone,
+            "photo": agent.profile_photo,
+            "state": agent.state,
+            "city": agent.city,
+            "online": online,
+            "distance_km": round(dist, 2) if dist else None,
+            "avg_rating": round(db.session.query(func.avg(Review.rating)).filter_by(reviewee_id=agent.id).scalar() or 0, 1),
+            "review_count": db.session.query(Review).filter_by(reviewee_id=agent.id).count(),
+            "whatsapp_link": f"https://wa.me/{agent.phone}",
         })
 
-    results.sort(key=lambda x: x['distance_km'])
+    # Sort by distance if coordinates provided
+    if user_lat and user_lon:
+        results.sort(key=lambda x: x['distance_km'])
+
     return jsonify(results)
+
 
 
 from sqlalchemy.sql import func

@@ -64,6 +64,9 @@ def create_app():
     # ---------- App Config ----------
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'supersecretkey')
 
+
+
+
     # Database (psycopg3)
     database_url = os.environ.get('DATABASE_URL')
     if database_url.startswith("postgres://"):

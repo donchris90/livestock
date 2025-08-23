@@ -35,12 +35,12 @@
   </div>
 </div>
 
-<!-- ✅ JS Scripts -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const productId = {{ product.id }};
   const productTitle = {{ product.title | tojson }};
   const resultsDiv = document.getElementById('nearbyResults');
+  let refreshInterval;
 
   function capitalizeWords(str) {
     return (str || '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -143,51 +143,41 @@ document.addEventListener('DOMContentLoaded', function () {
   </div>
 </div>
 
-<!-- ✅ Booking Modal -->
+<!-- Booking Modal -->
 <div class="modal fade" id="${modalId}" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
   <div class="modal-dialog">
     <form method="POST" action="${bookUrl}" onsubmit="handleBookingFormSubmit(event, '${modalId}')">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h5 class="modal-title">Book ${fullName} for "<span class="text-primary">${productTitle}</span>"</h5>
-      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-    </div>
-    <div class="modal-body">
-      ${additionalFields}
-
-      <!-- Hidden Product ID -->
-      <input type="hidden" name="product_id" value="${productId}">
-
-      <!-- Booking Date -->
-      <div class="mb-3">
-        <label class="form-label">Booking Date</label>
-        <input type="date" name="date" class="form-control" required>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Book ${fullName} for "<span class="text-primary">${productTitle}</span>"</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          ${additionalFields}
+          <input type="hidden" name="product_id" value="${productId}">
+          <div class="mb-3">
+            <label class="form-label">Booking Date</label>
+            <input type="date" name="date" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Message</label>
+            <textarea name="message" class="form-control" rows="3" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Confirm</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
       </div>
-
-      <!-- Message -->
-      <div class="mb-3">
-        <label class="form-label">Message</label>
-        <textarea name="message" class="form-control" rows="3" required></textarea>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button type="submit" class="btn btn-primary">Confirm</button>
-      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-    </div>
-  </div>
-</form>
-
+    </form>
   </div>
 </div>
       `;
-
       resultsDiv.insertAdjacentHTML('beforeend', card);
     });
   }
 
   function fetchNearby(role) {
-    resultsDiv.innerHTML = `<div class="col"><div class="alert alert-info">Searching for nearby ${role}s...</div></div>`;
-
     if (!navigator.geolocation) {
       resultsDiv.innerHTML = `<div class="col"><div class="alert alert-danger">Geolocation not supported.</div></div>`;
       return;
@@ -215,8 +205,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  document.getElementById('findAgentBtn').addEventListener('click', () => fetchNearby('agent'));
-  document.getElementById('findLogisticsBtn').addEventListener('click', () => fetchNearby('logistics'));
+  document.getElementById('findAgentBtn').addEventListener('click', () => {
+    fetchNearby('agent');
+    clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => fetchNearby('agent'), 30000); // refresh every 30s
+  });
+
+  document.getElementById('findLogisticsBtn').addEventListener('click', () => {
+    fetchNearby('logistics');
+    clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => fetchNearby('logistics'), 30000); // refresh every 30s
+  });
 });
 </script>
 

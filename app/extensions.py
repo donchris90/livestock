@@ -11,3 +11,5 @@ mail = Mail()
 db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
+
+
