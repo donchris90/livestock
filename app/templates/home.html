@@ -1,60 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Livestock Marketplace</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <script src="https://kit.fontawesome.com/a2c7c9e14a.js" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Livestock Marketplace</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body {background-color: #f8f9fa; font-family: Arial, sans-serif;}
+.navbar {background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+.search-bar {margin: 20px 0;}
+.filter-panel {display: none; background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
 
-  <style>
-    .product-card .badge {
-      font-size: 0.75rem;
-      padding: 0.35em 0.6em;
-      border-radius: 0.5rem;
-      font-weight: 600;
-    }
-    .badge-featured { background-color: gold; color: black; }
-    .badge-boosted { background-color: #17a2b8; color: white; }
-    .badge-verified { background-color: #28a745; color: white; }
-    .price { font-weight: bold; color: #28a745; }
-    .sidebar { background-color: #f8f9fa; padding: 20px; border-radius: 10px; }
-    .product-card { transition: transform 0.2s ease-in-out; }
-    .product-card:hover { transform: scale(1.03); }
-    .product-img { height: 200px; object-fit: cover; }
-  </style>
+/* Product card */
+.product-card {position:relative; background:#fff; border-radius:12px; overflow:hidden; transition:0.3s; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+.product-card:hover {transform: translateY(-5px);}
+.product-card img {width:100%; height:200px; object-fit:cover; border-top-left-radius:12px; border-top-right-radius:12px;}
+
+/* Badges and wishlist */
+.badge-overlay {position:absolute; top:10px; left:10px; display:flex; gap:5px; z-index:10;}
+.badge-overlay span {padding:3px 7px; border-radius:5px; color:#fff; font-size:0.7rem; font-weight:bold;}
+.wishlist-icon {position:absolute; top:10px; right:10px; background:#fff; border-radius:50%; padding:8px; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center;}
+.wishlist-icon i {color:#d9534f; font-size:1.1rem;}
+.wishlist-icon:hover {transform: scale(1.2); transition:0.2s;}
+
+/* Product info */
+.product-info {padding:12px;}
+.product-info h5 {font-size:1rem; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.price {color:#28a745; font-weight:bold; margin-bottom:3px;}
+.location {font-size:0.85rem; color:#555; margin-bottom:8px;}
+.product-actions {display:flex; justify-content:start; gap:12px; margin-top:8px;}
+.product-actions a {font-size:1.2rem; color:#333; transition:0.2s;}
+.product-actions a:hover {color:#28a745;}
+
+/* CTA */
+.cta-apply {background-color: #28a745; color: #fff; font-weight: bold; padding: 10px; border-radius: 8px; text-align: center; display:block; margin-bottom:20px; text-decoration:none;}
+
+/* Footer */
+footer {background-color:#fff; padding:20px; text-align:center; margin-top:40px; box-shadow:0 -2px 4px rgba(0,0,0,0.05);}
+
+/* Mobile bottom nav */
+.bottom-nav {position:fixed; bottom:0; width:100%; background:#fff; border-top:1px solid #ddd; display:flex; justify-content:space-around; padding:10px 0; z-index:999;}
+.bottom-nav a {text-align:center; font-size:0.8rem; color:#333; text-decoration:none;}
+.bottom-nav a i {display:block; font-size:1.3rem;}
+
+/* Mobile 2 column grid */
+@media(max-width:767px){
+  .col-6-mobile {padding-left:5px; padding-right:5px; width:50%;}
+  .product-card img {height:150px;}
+  .search-bar form {flex-direction:column; gap:8px;}
+  .search-bar input {width:100% !important;}
+  .search-bar button {width:100%;}
+}
+</style>
 </head>
 <body>
 
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-light">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="{{ url_for('main.home') }}">🐄 Livestock Market</a>
-
-    <!-- Mobile Search Form -->
-    <form class="d-flex ms-3 d-lg-none" method="GET" action="{{ url_for('main.home') }}">
-      <input class="form-control me-2" type="search" name="q" placeholder="Search all products..." value="{{ request.args.get('search', '') }}">
-      <button class="btn btn-outline-success" type="submit">Search</button>
-    </form>
-
-    <!-- Mobile toggle button -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <a class="navbar-brand" href="{{ url_for('main.home') }}">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Livestock Market" style="height:40px;">
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
-
-    <!-- Nav Links -->
     <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
       <ul class="navbar-nav">
         {% if current_user.is_authenticated %}
-          <li class="nav-item">
-            {% if current_user.is_admin %}
-              <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">Admin Dashboard</a>
-            {% else %}
-              <a class="nav-link" href="{{ url_for(current_user.role ~ '.' ~ current_user.role ~ '_dashboard') }}">My Profile</a>
-            {% endif %}
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('seller_dashboard.my_dashboard') }}">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a></li>
         {% else %}
           <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Sign In</a></li>
@@ -65,172 +79,135 @@
   </div>
 </nav>
 
-<!-- Main Content -->
-<div class="container-fluid mt-4">
-  <div class="row">
+<!-- Search Bar -->
+<div class="container search-bar d-flex justify-content-center">
+  <form method="GET" class="d-flex align-items-center gap-2 w-100" style="max-width:600px;">
+    <input type="text" name="search" class="form-control" placeholder="Search all products..." value="{{ request.args.get('search','') }}">
+    <button type="button" class="btn btn-outline-secondary" id="toggleFilter"><i class="fas fa-filter"></i></button>
+  </form>
+</div>
 
-    <!-- Sidebar for Desktop -->
-    <div class="col-md-3 d-none d-md-block">
-      <div class="sidebar">
-        {% include 'filters_form.html' %}
+<!-- Filter Panel -->
+<div class="container filter-panel" id="filterPanel">
+  <form method="GET">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <select name="category" class="form-select">
+          {% set selected_category = request.args.get('category') %}
+          <option value="">All Categories</option>
+          <option value="cattle" {% if selected_category=='cattle' %}selected{% endif %}>Cattle</option>
+          <option value="goats" {% if selected_category=='goats' %}selected{% endif %}>Goats</option>
+          <option value="pig" {% if selected_category=='pig' %}selected{% endif %}>Pig</option>
+          <option value="poultry" {% if selected_category=='poultry' %}selected{% endif %}>Poultry</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select id="state" name="state" class="form-select">
+          <option value="">--Select State--</option>
+          <option value="Lagos" {% if request.args.get('state')=='Lagos' %}selected{% endif %}>Lagos</option>
+          <option value="Abuja" {% if request.args.get('state')=='Abuja' %}selected{% endif %}>FCT</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select id="city" name="city" class="form-select">
+          <option value="">--Select LGA--</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="number" name="min_price" class="form-control mb-1" placeholder="Min Price" value="{{ request.args.get('min_price','') }}">
+        <input type="number" name="max_price" class="form-control" placeholder="Max Price" value="{{ request.args.get('max_price','') }}">
       </div>
     </div>
+    <div class="mt-3">
+      <button type="submit" class="btn btn-primary">Apply Filters</button>
+      <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Reset</a>
+    </div>
+  </form>
+</div>
 
-    <!-- Mobile Filter Dropdown -->
-    <div class="col-12 d-md-none mb-3">
-      <div class="dropdown">
-        <button class="btn btn-primary w-100 dropdown-toggle" type="button" id="mobileFilterBtn" data-bs-toggle="dropdown" aria-expanded="false">
-          Filter Products
-        </button>
-        <div class="dropdown-menu p-3 w-100" aria-labelledby="mobileFilterBtn" style="min-width: 100%">
-          {% include 'filters_form.html' %}
+<!-- CTA -->
+<div class="container">
+  <a href="#" class="cta-apply">Apply to become Agent / Vet / Logistics</a>
+</div>
+
+<!-- Products -->
+<div class="container product-grid">
+  <div class="row g-3">
+    {% for product in products %}
+    <div class="col-md-3 col-6-mobile">
+      <div class="product-card">
+        <!-- Badges -->
+        <div class="badge-overlay">
+          {% if product.is_featured %}<span style="background:#f0ad4e">Featured</span>{% endif %}
+          {% if product.is_top %}<span style="background:#5bc0de">Top</span>{% endif %}
+          {% if product.is_boost %}<span style="background:#d9534f">Boost</span>{% endif %}
+        </div>
+
+        <!-- Wishlist -->
+        <div class="wishlist-icon"><i class="fas fa-heart"></i></div>
+
+        <!-- Image -->
+        <img src="{{ url_for('static', filename=(product.photos[0].split('static/')[-1] if product.photos else 'default.jpg')) }}" alt="{{ product.title }}">
+
+        <!-- Product Info -->
+        <div class="product-info">
+          <h5>{{ product.title }}</h5>
+          <div class="price">₦{{ "{:,.2f}".format(product.price) }}</div>
+          {% if product.state and product.city %}
+          <div class="location"><i class="fas fa-map-marker-alt"></i> {{ product.city }}, {{ product.state }}</div>
+          {% endif %}
+
+          <!-- Actions -->
+          <div class="product-actions">
+            {% if product.phone_display %}
+            <a href="https://wa.me/{{ product.phone_display | replace('0','234',1) }}" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+            <a href="tel:{{ product.phone_display }}" title="Call"><i class="fas fa-phone"></i></a>
+            {% endif %}
+            {% if product.user %}
+            <a href="{{ url_for('chat.chat_with_user', receiver_id=product.user.id) }}" title="Chat"><i class="fas fa-comment"></i></a>
+            {% endif %}
+            <a href="{{ url_for('seller_dashboard.product_detail', product_id=product.id) }}" title="View Product"><i class="fas fa-eye"></i></a>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Products -->
-    <div class="col-md-9">
-      <div class="row g-4">
-        {% for product in products %}
-          <div class="col-md-4 col-lg-3">
-            <div class="card h-100 shadow-sm border-0 product-card rounded-4 position-relative">
-              <div class="position-relative">
-                {% if product.photos and product.photos[0] %}
-                  <img src="{{ url_for('static', filename=product.photos[0].split('static/')[-1]) }}" class="card-img-top product-img rounded-top" alt="{{ product.title }}">
-                {% else %}
-                  <img src="{{ url_for('static', filename='default.jpg') }}" class="card-img-top product-img rounded-top" alt="No image">
-                {% endif %}
-
-                {% if product.is_featured and product.featured_expiry and product.featured_expiry > now %}
-                  <div class="position-absolute top-0 end-0 bg-warning text-dark fw-bold px-2 py-1 rounded-bottom-start z-1" data-bs-toggle="tooltip" title="Featured Product">🌟</div>
-                {% elif product.is_top and product.top_expiry and product.top_expiry > now %}
-                  <div class="position-absolute top-0 end-0 bg-success text-white fw-bold px-2 py-1 rounded-bottom-start z-1" data-bs-toggle="tooltip" title="Top Product">📌</div>
-                {% elif product.is_boosted and product.boosted_expiry and product.boosted_expiry > now %}
-                  <div class="position-absolute top-0 end-0 bg-info text-white fw-bold px-2 py-1 rounded-bottom-start z-1" data-bs-toggle="tooltip" title="Boosted for visibility">🚀</div>
-                {% endif %}
-              </div>
-
-              <div class="card-body d-flex flex-column">
-                <h6 class="fw-bold text-truncate">{{ product.title }}</h6>
-
-                <small class="text-muted mb-1">
-                  📅 {{ product.created_at.strftime('%b %d, %Y') }}<br>
-                  📍 {{ product.state }}, {{ product.city }}
-                </small>
-
-                <p class="price mt-2 mb-1">₦{{ "{:,.2f}".format(product.price) }}</p>
-                <small class="text-muted">Negotiable: {{ product.open_to_negotiation|capitalize }}</small>
-
-                {% if product.user %}
-                  <small class="mt-2 text-muted">
-                    👤 {{ product.user.first_name }} {{ product.user.last_name }}
-                    {% if product.user.is_verified %}
-                      <i class="fas fa-check-circle text-success" data-bs-toggle="tooltip" title="Verified Seller"></i>
-                    {% endif %}
-                  </small>
-                {% endif %}
-
-                <div class="mt-auto d-flex flex-column gap-2 mt-3">
-                  {% if product.phone_display %}
-                    <a href="https://wa.me/{{ product.phone_display | replace('0', '234', 1) }}" target="_blank" class="btn btn-sm btn-success w-100">💬 WhatsApp Seller</a>
-                  {% endif %}
-                  <a href="tel:{{ product.phone_display }}" class="btn btn-sm btn-outline-success w-100">📞 Call Seller</a>
-                  {% if product.user %}
-                    <a href="{{ url_for('chat.chat_with_user', receiver_id=product.user.id) }}" class="btn btn-sm btn-outline-primary w-100">💬 Chat Seller</a>
-                  {% endif %}
-                  <a href="{{ url_for('seller_dashboard.product_detail', product_id=product.id) }}" class="btn btn-sm btn-dark w-100">🔍 View Details</a>
-                </div>
-              </div>
-            </div>
-          </div>
-        {% else %}
-          <div class="col-12">
-            <div class="alert alert-warning text-center">No products found for selected filters.</div>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-
+    {% else %}
+    <div class="col-12"><div class="alert alert-warning text-center">No products found.</div></div>
+    {% endfor %}
   </div>
 </div>
 
-<!-- JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Footer -->
+<footer>
+  &copy; {{ now.year }} Livestock Marketplace. All rights reserved.
+</footer>
+
+<!-- Mobile Bottom Nav -->
+<div class="bottom-nav d-md-none">
+  <a href="{{ url_for('main.home') }}"><i class="fas fa-home"></i>Home</a>
+  <a href="{{ url_for('main.home') }}"><i class="fas fa-search"></i>Search</a>
+  <a href="{{ url_for('seller_dashboard.upload_product') }}"><i class="fas fa-plus-square"></i>Post</a>
+  <a href="{{ url_for('chat.inbox') }}"><i class="fas fa-comment-dots"></i>Chat</a>
+  <a href="{{ url_for('seller_dashboard.my_dashboard') }}"><i class="fas fa-user"></i>Profile</a>
+</div>
 
 <script>
-const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
-</script>
+  // Toggle filter panel
+  const toggleBtn = document.getElementById('toggleFilter');
+  const filterPanel = document.getElementById('filterPanel');
+  toggleBtn.addEventListener('click',()=>filterPanel.style.display = filterPanel.style.display==='none'?'block':'none');
 
-<!-- Location Update Script -->
-<script>
-{% if current_user.is_authenticated and current_user.role in ['agent', 'vet', 'logistics'] %}
-setInterval(() => {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      fetch("/update-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude
-        })
-      });
+  // LGA logic
+  const citySelect = document.getElementById("city");
+  const stateSelect = document.getElementById("state");
+  const lgasByState = {"Lagos":["Ikeja","Surulere"], "Abuja":["Garki","Maitama"]};
+  stateSelect.addEventListener('change',()=>{
+    citySelect.innerHTML = '<option value="">--Select LGA--</option>';
+    if(lgasByState[stateSelect.value]) lgasByState[stateSelect.value].forEach(lga=>{
+      let opt = document.createElement('option'); opt.value=opt.textContent=lga; citySelect.appendChild(opt);
     });
-  }
-}, 30000);
-{% endif %}
-
-navigator.geolocation.getCurrentPosition(pos => {
-  fetch('/update-location', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
-  }).then(res => {
-    if(res.ok) console.log('📍 Location updated');
-    else console.warn('❌ Failed to update location');
   });
-});
 </script>
-
-<!-- LGA Script -->
-<script>
-const lgasByState = {
-  "Abia": ["Aba North", "Aba South", "Arochukwu", "Bende", "Ikwuano", "Isiala Ngwa North", "Isiala Ngwa South", "Isuikwuato", "Obi Ngwa", "Ohafia", "Osisioma", "Ugwunagbo", "Ukwa East", "Ukwa West", "Umuahia North", "Umuahia South", "Umu Nneochi"],
-  "Adamawa": ["Demsa", "Fufore", "Ganye", "Girei", "Gombi", "Guyuk", "Hong", "Jada", "Lamurde", "Madagali", "Maiha", "Mayo-Belwa", "Michika", "Mubi North", "Mubi South", "Numan", "Shelleng", "Song", "Toungo", "Yola North", "Yola South"],
-  // ... continue all 36 states with LGAs ...
-};
-
-const stateSelect = document.getElementById("state");
-const citySelect = document.getElementById("city");
-
-stateSelect.addEventListener("change", function () {
-  const selectedState = this.value;
-  citySelect.innerHTML = '<option value="">--Select LGA--</option>';
-  if (lgasByState[selectedState]) {
-    lgasByState[selectedState].forEach(lga => {
-      const option = document.createElement("option");
-      option.value = lga;
-      option.textContent = lga;
-      citySelect.appendChild(option);
-    });
-  }
-});
-
-window.addEventListener("DOMContentLoaded", () => {
-  const selectedState = "{{ request.args.get('state') }}";
-  const selectedCity = "{{ request.args.get('city') }}";
-  if (selectedState && lgasByState[selectedState]) {
-    lgasByState[selectedState].forEach(lga => {
-      const option = document.createElement("option");
-      option.value = lga;
-      option.textContent = lga;
-      if (lga === selectedCity) option.selected = true;
-      citySelect.appendChild(option);
-    });
-  }
-});
-</script>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

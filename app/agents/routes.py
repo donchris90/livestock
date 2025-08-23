@@ -707,3 +707,47 @@ def search_nearby_logistics():
 
 
 
+from flask import request, jsonify
+from flask_login import login_required, current_user
+from app.realtime_locations import update_user_location
+
+@agents_bp.route("/api/update-location", methods=["POST"])
+@login_required
+def update_location():
+    data = request.json
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
+    role = current_user.role
+
+    if latitude is None or longitude is None:
+        return jsonify({"error": "Missing coordinates"}), 400
+
+    update_user_location(current_user.id, role, latitude, longitude)
+    return jsonify({"status": "ok"})
+
+from app.realtime_locations import get_nearby_users
+
+@agents_bp.route("/api/nearby-users")
+@login_required
+def nearby_users():
+    latitude = request.args.get("latitude", type=float)
+    longitude = request.args.get("longitude", type=float)
+    role = request.args.get("role", default="agent")
+
+    if latitude is None or longitude is None:
+        return jsonify({"error": "Missing coordinates"}), 400
+
+    users = get_nearby_users(role, latitude, longitude, radius_km=10)
+    enriched = []
+    for u in users:
+        user_obj = User.query.get(u["user_id"])
+        enriched.append({
+            "id": user_obj.id,
+            "full_name": f"{user_obj.first_name} {user_obj.last_name}",
+            "phone": user_obj.phone,
+            "photo": user_obj.profile_photo,
+            "latitude": u["latitude"],
+            "longitude": u["longitude"],
+            "role": user_obj.role
+        })
+    return jsonify(enriched)
