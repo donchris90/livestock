@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, flash, redirect, url_for,abort, request, jsonify, current_app
-from flask_login import login_required, current_user
-from flask_socketio import emit
+
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.routes.utils import create_notification,mail
