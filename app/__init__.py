@@ -142,6 +142,7 @@ def create_app():
     init_context_processors(app)
     register_chat_events(socketio)
 
+
     # ---------- Custom CLI Command ----------
     @click.command('auto-renew-subscriptions')
     @with_appcontext

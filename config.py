@@ -16,6 +16,8 @@ class Config:
     }
 
     UPLOAD_FOLDER = os.path.join(os.getcwd(), 'app', 'static', 'uploads')
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # optional, max upload size 16MB
+
     INSPECTION_UPLOAD_FOLDER = 'app/static/uploads/inspection_files'
 
     # Payment keys
