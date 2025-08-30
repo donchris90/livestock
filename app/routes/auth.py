@@ -29,13 +29,25 @@ def login():
         if user and user.check_password(password):
             login_user(user)
             flash('✅ Logged in successfully.', 'success')
-            return redirect(url_for('main.home'))  # or your dashboard route
+
+            # ✅ Role-based redirect
+            if user.role in ['buyer', 'seller']:
+                return redirect(url_for('seller_dashboard.my_dashboard'))  # shared buyer/seller dashboard
+            elif user.role == 'agent':
+                return redirect(url_for('agents.agent_dashboard'))
+            elif user.role == 'logistics':
+                return redirect(url_for('logistics.logistics_dashboard'))
+            elif user.role == 'admin':
+                return redirect(url_for('admin.admin_dashboard'))
+            else:
+                flash("Unknown role. Contact admin.", "danger")
+                return redirect(url_for('auth.login'))
+
         else:
             flash('❌ Invalid credentials. Please try again.', 'danger')
-            return redirect(url_for('auth.login'))  # stay on login page
+            return redirect(url_for('auth.login'))
 
     return render_template("login.html", form=form)
-
 
 
 # ------------------------------

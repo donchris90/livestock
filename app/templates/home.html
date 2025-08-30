@@ -134,52 +134,199 @@ footer {background-color:#fff; padding:20px; text-align:center; margin-top:40px;
   <a href="#" class="cta-apply">Apply to become Agent / Vet / Logistics</a>
 </div>
 
-<!-- Products -->
-<div class="container product-grid">
-  <div class="row g-3">
-    {% for product in products %}
-    <div class="col-md-3 col-6-mobile">
-      <div class="product-card">
+<style>
+/* Fixed card image size and cropping */
+.card-img-top {
+    width: 100%;
+    height: 200px;        /* uniform height */
+    object-fit: cover;    /* crop/scale to fill */
+}
+
+@media (min-width: 768px) {
+    .card-img-top {
+        height: 250px;
+    }
+}
+
+/* Carousel horizontal scroll on mobile */
+.carousel-item .d-flex {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.carousel-item .card {
+    flex: 0 0 auto;
+}
+
+/* Badge overlay */
+.badge-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    gap: 5px;
+    z-index: 10;
+}
+
+.badge-overlay span {
+    color: white;
+    padding: 2px 6px;
+    font-size: 12px;
+    border-radius: 3px;
+}
+
+/* Make all cards same height in grid */
+.card.h-100 {
+    display: flex;
+    flex-direction: column;
+}
+
+.card-body {
+    flex: 1 1 auto; /* grow to fill remaining space */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* title/price on top, actions bottom */
+}
+</style>
+<div class="container my-3">
+
+  <!-- === All Products Scroll === -->
+  {% if sorted_products %}
+  <div class="row g-3 row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-6">
+    {% for p in sorted_products %}
+    <div class="col">
+      <div class="card h-100 shadow-sm product-card position-relative">
+
         <!-- Badges -->
-        <div class="badge-overlay">
-          {% if product.is_featured %}<span style="background:#f0ad4e">Featured</span>{% endif %}
-          {% if product.is_top %}<span style="background:#5bc0de">Top</span>{% endif %}
-          {% if product.is_boost %}<span style="background:#d9534f">Boost</span>{% endif %}
-        </div>
+        {% if p.is_boosted %}
+        <span class="badge bg-danger position-absolute top-0 start-0 m-2">Boosted</span>
+        {% elif p.is_featured %}
+        <span class="badge bg-primary position-absolute top-0 start-0 m-2">Featured</span>
+        {% elif p.is_top %}
+        <span class="badge bg-warning text-dark position-absolute top-0 start-0 m-2">Top</span>
+        {% endif %}
 
-        <!-- Wishlist -->
-        <div class="wishlist-icon"><i class="fas fa-heart"></i></div>
+        <!-- Product Image -->
+        <a href="{{ url_for('seller_dashboard.product_detail', product_id=p.id) }}">
+          {% set photo = 'default.jpg' %}
+{% if p.photos and p.photos[0] %}
+    {% set photo = p.photos[0].split('uploads/')[-1] %}
+{% endif %}
+<img src="{{ url_for('static', filename='uploads/' ~ photo) }}"
+     class="card-img-top"
+     style="height: 200px; object-fit: cover;"
+     alt="{{ p.title }}">
 
-        <!-- Image -->
-        <img src="{{ url_for('static', filename=(product.photos[0].split('static/')[-1] if product.photos else 'default.jpg')) }}" alt="{{ product.title }}">
+        </a>
 
-        <!-- Product Info -->
-        <div class="product-info">
-          <h5>{{ product.title }}</h5>
-          <div class="price">₦{{ "{:,.2f}".format(product.price) }}</div>
-          {% if product.state and product.city %}
-          <div class="location"><i class="fas fa-map-marker-alt"></i> {{ product.city }}, {{ product.state }}</div>
-          {% endif %}
+        <!-- Card Body -->
+        <div class="card-body d-flex flex-column">
+          <h6 class="card-title text-truncate">{{ p.title }}</h6>
+          <p class="mb-1 text-muted small">
+            <i class="fas fa-map-marker-alt"></i>
+            {{ p.state }}{% if p.city %}, {{ p.city }}{% endif %}<br>
+            Posted: {{ p.created_at.strftime('%b %d, %Y') }}
+          </p>
+          <strong class="mt-auto">{{ "{:,.0f}₦".format(p.price) }}</strong>
 
-          <!-- Actions -->
-          <div class="product-actions">
-            {% if product.phone_display %}
-            <a href="https://wa.me/{{ product.phone_display | replace('0','234',1) }}" target="_blank" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>
-            <a href="tel:{{ product.phone_display }}" title="Call"><i class="fas fa-phone"></i></a>
-            {% endif %}
-            {% if product.user %}
-            <a href="{{ url_for('chat.chat_with_user', receiver_id=product.user.id) }}" title="Chat"><i class="fas fa-comment"></i></a>
-            {% endif %}
-            <a href="{{ url_for('seller_dashboard.product_detail', product_id=product.id) }}" title="View Product"><i class="fas fa-eye"></i></a>
-          </div>
+         <!-- Quick Action Buttons -->
+<div class="mt-2 d-flex flex-wrap gap-1 justify-content-between">
+
+  {% if p.owner.phone_number %}
+    <!-- WhatsApp -->
+    <a href="https://wa.me/{{ p.owner.phone_number | replace('0','234',1) }}"
+       target="_blank"
+       class="btn btn-success btn-sm flex-fill flex-md-auto d-flex align-items-center justify-content-center">
+      <i class="fab fa-whatsapp me-1"></i>
+      <span class="d-none d-md-inline">WhatsApp</span>
+    </a>
+
+    <!-- Call -->
+    <a href="tel:{{ p.owner.phone_number }}"
+       class="btn btn-primary btn-sm flex-fill flex-md-auto d-flex align-items-center justify-content-center">
+      <i class="fas fa-phone me-1"></i>
+      <span class="d-none d-md-inline">Call</span>
+    </a>
+  {% endif %}
+
+  {% if p.owner %}
+    <!-- Chat -->
+    <a href="{{ url_for('chat.chat_with_user', receiver_id=p.owner.id) }}"
+       class="btn btn-secondary btn-sm flex-fill flex-md-auto d-flex align-items-center justify-content-center">
+      <i class="fas fa-comment me-1"></i>
+      <span class="d-none d-md-inline">Chat</span>
+    </a>
+  {% endif %}
+
+  {% if p.phone_display %}
+    <!-- Hidden number button -->
+    <div class="d-flex align-items-center gap-1 flex-fill flex-md-auto">
+      <button class="btn btn-outline-primary btn-sm w-100" type="button"
+              onclick="this.nextElementSibling.style.display='inline'; this.style.display='none';">
+          <i class="fas fa-phone"></i> Call
+      </button>
+
+      <!-- Hidden number -->
+      <a href="tel:{{ p.phone_display }}" class="text-decoration-none w-100" style="display: none;">
+          <span>{{ p.phone_display }}</span>
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- Product Details -->
+  <a href="{{ url_for('seller_dashboard.product_detail', product_id=p.id) }}"
+     class="btn btn-info btn-sm flex-fill flex-md-auto d-flex align-items-center justify-content-center">
+    <i class="fas fa-eye me-1"></i>
+    <span class="d-none d-md-inline">View</span>
+  </a>
+
+</div>
+
+<style>
+/* Make buttons smaller on mobile */
+@media (max-width: 575px) {
+  .btn-sm {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .btn-sm i {
+    font-size: 0.9rem;
+  }
+}
+</style>
+
+<!-- Optional Hover Effect -->
+<style>
+.btn-sm {
+  transition: transform 0.2s;
+}
+.btn-sm:hover {
+  transform: scale(1.05);
+}
+</style>
+
         </div>
       </div>
     </div>
-    {% else %}
-    <div class="col-12"><div class="alert alert-warning text-center">No products found.</div></div>
     {% endfor %}
   </div>
+  {% else %}
+  <div class="alert alert-warning text-center">No products found.</div>
+  {% endif %}
 </div>
+
+<!-- === Hover Effect CSS === -->
+<style>
+.product-card:hover {
+  transform: scale(1.03);
+  transition: transform 0.2s;
+}
+.card-img-top {
+  width: 100%;
+}
+</style>
+
+
 
 <!-- Footer -->
 <footer>

@@ -13,7 +13,87 @@
            class="rounded-circle border" width="60" height="60" alt="Avatar">
     </div>
   </div>
+<div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const toastContainer = document.getElementById('toast-container');
 
+  socket.on('featured_notification', (data) => {
+    let bgClass = 'bg-success';
+    if (data.status === 'expired') bgClass = 'bg-danger';
+    else if (data.status === 'expiring_soon') bgClass = 'bg-warning';
+
+    const toastEl = document.createElement('div');
+    toastEl.className = 'toast';
+    toastEl.role = 'alert';
+    toastEl.dataset.bsAutohide = 'true';
+    toastEl.dataset.bsDelay = '8000';
+
+    toastEl.innerHTML = `
+      <div class="toast-header ${bgClass} text-white">
+        <strong class="me-auto">Featured Product Alert</strong>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+      </div>
+      <div class="toast-body">${data.message}</div>
+    `;
+
+    toastContainer.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+
+    toastEl.addEventListener('hidden.bs.toast', () => {
+      toastEl.remove();
+    });
+  });
+</script>
+
+
+<div class="container my-4">
+  <h4 class="mb-3">Expiring / Expired Featured Products</h4>
+
+  {% if expiring_products %}
+    <div class="row g-3">
+      {% for product in expiring_products %}
+        {% set days_left = (product.featured_expiry - now).days %}
+        <div class="col-md-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+              <h6 class="card-title">{{ product.title }}</h6>
+
+              {% if product.featured_expiry < now %}
+                <span class="badge bg-danger mb-2">Expired</span>
+              {% else %}
+                <span class="badge bg-warning mb-2">Expiring Soon</span>
+              {% endif %}
+
+              <!-- Progress bar showing urgency -->
+              {% if product.featured_expiry >= now %}
+                {% set progress = ((3 - days_left)/3 * 100) if days_left <= 3 else 0 %}
+                <div class="progress mb-2" style="height: 8px;">
+                  <div class="progress-bar bg-warning" role="progressbar" style="width: {{ progress }}%;"
+                       aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+              {% endif %}
+
+              <small class="text-muted">
+                Expiry: {{ product.featured_expiry.strftime('%d %b, %Y') }}
+                {% if product.featured_expiry >= now and days_left <= 3 %}
+                  ({{ days_left }} day{{ 's' if days_left != 1 else '' }} left)
+                {% endif %}
+              </small>
+
+              <a href="{{ url_for('products.edit_product', product_id=product.id) }}"
+                 class="btn btn-sm btn-primary mt-auto">Manage Product</a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-center text-muted">No expiring or expired featured products.</p>
+  {% endif %}
+</div>
   <div class="row g-4">
     <!-- Left Column: Account Summary & Transfer -->
     <div class="col-lg-6 col-md-12">
@@ -101,68 +181,81 @@
       </div>
 
       <!-- Transfer Funds JS -->
-      <script>
-        document.addEventListener("DOMContentLoaded", () => {
-          const recipientType = document.getElementById("recipient_type");
-          const recipientSelect = document.getElementById("recipient_id");
-          const amountInput = document.getElementById("amount");
-          const totalInput = document.getElementById("total_amount");
-          const balanceWarning = document.getElementById("balance-warning");
+   <script>
+document.addEventListener("DOMContentLoaded", () => {
+    const recipientType = document.getElementById("recipient_type");
+    const recipientSelect = document.getElementById("recipient_id");
+    const amountInput = document.getElementById("amount");
+    const totalInput = document.getElementById("total_amount");
+    const balanceWarning = document.getElementById("balance-warning");
 
-          const userBalance = parseFloat("{{ balance or 0 }}");
+    const userBalance = parseFloat("{{ balance or 0 }}") || 0;
 
-          function updateTotal() {
-            let amount = parseFloat(amountInput.value) || 0;
-            let type = recipientType.value;
-            let total = amount;
+    // Function to calculate total including escrow fee
+    function updateTotal() {
+        let amount = parseFloat(amountInput.value) || 0;
+        let type = recipientType.value;
+        let total = amount;
 
-            if (type === 'escrow_agent' || type === 'escrow_logistics') total = amount * 1.03;
+        // Add 3% escrow fee for escrow transfers
+        if (type === 'escrow_agent' || type === 'escrow_logistics') {
+            total = amount * 1.03;
+        }
 
-            totalInput.value = total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            balanceWarning.style.display = total > userBalance ? 'block' : 'none';
-          }
+        totalInput.value = total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-          amountInput.addEventListener('input', updateTotal);
-          recipientType.addEventListener('change', updateTotal);
+        // Show warning if total exceeds balance
+        balanceWarning.style.display = total > userBalance ? 'block' : 'none';
+    }
 
-          recipientType.addEventListener("change", async function () {
-            const type = this.value;
-            recipientSelect.innerHTML = '<option value="">Loading...</option>';
+    // Event listeners for live calculation
+    amountInput.addEventListener('input', updateTotal);
+    recipientType.addEventListener('change', updateTotal);
 
-            if (!type) {
-              recipientSelect.innerHTML = '<option value="">Select Recipient</option>';
-              return;
-            }
+    // Load recipients dynamically based on type
+    recipientType.addEventListener("change", async function () {
+        const type = this.value;
+        recipientSelect.innerHTML = '<option value="">Loading...</option>';
 
-            try {
-              const response = await fetch(`/dashboard/get_recipients/${type}`);
-              if (!response.ok) throw new Error("Failed to fetch recipients");
-              const data = await response.json();
+        if (!type) {
+            recipientSelect.innerHTML = '<option value="">Select Recipient</option>';
+            return;
+        }
 
-              recipientSelect.innerHTML = '<option value="">Select Recipient</option>';
-              data.length === 0
-                ? recipientSelect.innerHTML = '<option value="">No recipients found</option>'
-                : data.forEach(r => {
+        try {
+            const response = await fetch(`/dashboard/get_recipients/${type}`);
+            if (!response.ok) throw new Error("Failed to fetch recipients");
+            const data = await response.json();
+
+            recipientSelect.innerHTML = '<option value="">Select Recipient</option>';
+            if (data.length === 0) {
+                recipientSelect.innerHTML = '<option value="">No recipients found</option>';
+            } else {
+                data.forEach(r => {
                     const opt = document.createElement("option");
                     opt.value = r.id;
                     opt.textContent = r.name;
                     recipientSelect.appendChild(opt);
-                  });
-            } catch (err) {
-              console.error("Error fetching recipients:", err);
-              recipientSelect.innerHTML = '<option value="">Error loading recipients</option>';
+                });
             }
-          });
+        } catch (err) {
+            console.error("Error fetching recipients:", err);
+            recipientSelect.innerHTML = '<option value="">Error loading recipients</option>';
+        }
+    });
 
-          document.getElementById('transferForm').addEventListener('submit', function(e) {
-            const total = parseFloat(totalInput.value.replace(/,/g, '')) || 0;
-            if (total > userBalance) {
-              e.preventDefault();
-              alert("Insufficient funds including escrow fee!");
-            }
-          });
-        });
-      </script>
+    // Prevent submitting if balance is insufficient
+    document.getElementById('transferForm').addEventListener('submit', function(e) {
+        const total = parseFloat(totalInput.value.replace(/,/g, '')) || 0;
+        if (total > userBalance) {
+            e.preventDefault();
+            alert("Insufficient funds including escrow fee!");
+        }
+    });
+});
+</script>
+
+
 
     </div>
 
@@ -218,18 +311,7 @@
       <div class="card mt-4 p-4 shadow-sm">
         <h5 class="mb-2 fw-bold">💵 Escrow Status (Agent & Logistics)</h5>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="mt-3">
-              {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                  {{ message }}
-                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-              {% endfor %}
-            </div>
-          {% endif %}
-        {% endwith %}
+
 
         <div id="escrow-list">
           {% for escrow in service_escrows %}
@@ -251,33 +333,18 @@
             </div>
 
             {% if not escrow.is_released %}
-            <form action="{{ url_for('seller_dashboard.release_escrow', escrow_id=escrow.id) }}" method="POST" class="mt-2 d-flex gap-2">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="d-flex flex-column flex-md-row align-items-stretch gap-2">
-  <!-- Amount Input -->
-  <input type="number"
-         name="amount"
-         min="0"
-         step="0.01"
-         max="{{ (escrow.total_amount or 0) - (escrow.partial_release_amount or 0) }}"
-         class="form-control form-control-sm flex-grow-1"
-         placeholder="Enter amount to release">
+        <form action="{{ url_for('seller_dashboard.release_escrow', escrow_id=escrow.id) }}" method="POST" class="d-flex">
+    <!-- Partial release input -->
 
-  <!-- Full Amount Button -->
-  <button type="button"
-          class="btn btn-secondary btn-sm flex-shrink-0"
-          data-escrow-id="{{ escrow.id }}">
-      Full Amount
-  </button>
 
-  <!-- Release Button -->
-  <button type="submit"
-          class="btn btn-success btn-sm flex-shrink-0">
-      Release
-  </button>
-</div>
 
-            </form>
+
+    <!-- Full release button -->
+    <button type="submit" name="full_release" value="1" class="btn btn-primary">
+        Release
+    </button>
+</form>
+
             {% else %}
             <div class="mt-2 text-success">
                 Fully released ✅
@@ -294,66 +361,87 @@
     </div>
   </div>
 </div>
-
-<!-- Socket.IO for Real-Time Escrow Updates -->
 <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
-<script>
-var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
-socket.on('connect', function() { console.log("Connected to Socket.IO"); });
 
-socket.on('escrow_update', function(data) {
-  const escrowCard = document.getElementById(`escrow-${data.escrow_id}`);
-  if (escrowCard) {
-    escrowCard.querySelector(".released-amount").innerText = `Released: ₦${Number(data.released_amount).toLocaleString(undefined,{minimumFractionDigits:2})}`;
-    escrowCard.querySelector(".pending-amount").innerText = `Pending: ₦${Number(data.pending_amount).toLocaleString(undefined,{minimumFractionDigits:2})}`;
-    escrowCard.querySelector(".status").innerText = `Status: ${data.status.replace("_"," ").replace(/\b\w/g, l => l.toUpperCase())}`;
-  }
-});
-</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Full Amount button
+    // Handle Full Amount buttons
     document.querySelectorAll('.use-full-amount').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();  // prevent default form submission
+
             const escrowId = this.dataset.escrowId;
             const card = document.getElementById(`escrow-${escrowId}`);
-            const input = card.querySelector('.release-amount');
+            if (!card) return;
 
-            // Convert text to Decimal-safe number
-            const pendingText = card.querySelector('.pending-amount').textContent.replace(/[^0-9.-]+/g,"");
-            input.value = parseFloat(pendingText).toFixed(2);
+            const input = card.querySelector('input[name="amount"]');  // safer selector
+            const pendingDiv = card.querySelector('.pending-amount');
+            if (!input || !pendingDiv) return;
+
+            // Remove any non-numeric characters to safely parse
+            const pendingText = pendingDiv.textContent.replace(/[^0-9.-]+/g,"");
+            const pendingAmount = parseFloat(pendingText) || 0;
+
+            input.value = pendingAmount.toFixed(2);
         });
     });
 });
 </script>
 
-
-<!-- Paystack Topup -->
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
-function startTopup(amount) {
-  if (!amount || amount <= 0) { alert("Enter a valid amount"); return; }
-  let handler = PaystackPop.setup({
-    key: "pk_live_fdf1dc85ceb7346d5b9cbd3ab52c42ceabeae0f8",
-    email: "{{ user.email }}",
-    amount: Math.round(amount * 100),
-    metadata: { user_id: {{ user.id }} },
-    callback: function(response) {
-      fetch(`/verify-topup/${response.reference}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.wallet_balance) {
-            document.getElementById('wallet-balance').textContent = `₦${Number(data.wallet_balance).toLocaleString(undefined,{minimumFractionDigits:2})}`;
-          }
-          if(data.message) alert(data.message);
-        })
-        .catch(err => { console.error(err); alert("Error verifying payment"); });
-    },
-    onClose: function() { alert("Transaction cancelled"); }
-  });
-  handler.openIframe();
+window.startTopup = function(amount) {
+    amount = parseFloat(amount);
+    if (!amount || amount <= 0) {
+        alert("Enter a valid top-up amount");
+        return;
+    }
+
+    if (typeof PaystackPop === "undefined") {
+        alert("Paystack script not loaded. Try refreshing the page.");
+        return;
+    }
+
+    let handler = PaystackPop.setup({
+        key: "pk_live_fdf1dc85ceb7346d5b9cbd3ab52c42ceabeae0f8",
+        email: {{ user.email|tojson }},
+        amount: Math.round(amount * 100),
+        metadata: { user_id: {{ user.id|tojson }} },
+        callback: function(response) {
+            console.log("Paystack reference:", response.reference);
+
+            fetch(`/verify-topup/${response.reference}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Top-up failed: " + data.error);
+                    return;
+                }
+
+                // Update wallet balance on page
+                if (data.wallet_balance !== undefined) {
+                    document.getElementById('wallet-balance').textContent =
+                        `₦${Number(data.wallet_balance).toLocaleString(undefined,{minimumFractionDigits:2})}`;
+                }
+
+                if (data.message) {
+                    alert(data.message);
+                }
+            })
+            .catch(err => {
+                console.error("Verification error:", err);
+                alert("Error verifying payment. Check console for details.");
+            });
+        },
+        onClose: function() {
+            alert("Transaction cancelled");
+        }
+    });
+
+    handler.openIframe();
 }
 </script>
+
 
 {% endblock %}

@@ -9,7 +9,7 @@ from app.extensions import db
 from app.models import (User, Product,
                         WalletTransaction,AdminWalletTransaction,BookingRequest,Wallet,
                         AdminRevenue,BankDetails, Setting,ChatMessage,
-                        Subscription, Escrow, Payment,EscrowPayment,ProfitHistory, PlatformWallet,PromotionPayment)
+                        Subscription, Escrow, Payment,EscrowPayment,ProfitHistory,AgentKYC, PlatformWallet,PromotionPayment)
 from werkzeug.security import generate_password_hash
 from flask_socketio import emit
 from app.utils.paystack import create_transfer_recipient,initiate_paystack_transfer
@@ -785,4 +785,55 @@ def platform_revenue():
         profit_logs=profit_logs
     )
 
+@admin_bp.route('/kyc/<int:kyc_id>', methods=['GET', 'POST'])
+@login_required
+def approve_kyc_detail(kyc_id):
+    kyc = AgentKYC.query.get_or_404(kyc_id)
 
+    if request.method == 'POST':
+        action = request.form.get('action')  # 'approve' or 'reject'
+        if action in ['approved', 'reject']:
+            kyc.status = action
+            db.session.commit()
+            flash(f'KYC has been {action}d.', 'success')
+            return redirect(url_for('admin.list_kyc'))
+
+    return render_template('admin/approve_kyc_detail.html', kyc=kyc)
+
+
+@admin_bp.route("/approve_kyc/<int:kyc_id>", methods=["POST"])
+@login_required
+def approve_kyc(kyc_id):
+    kyc = AgentKYC.query.get_or_404(kyc_id)
+    action = request.form.get("action")
+    if action == "approved":
+        kyc.status = "approved"
+    elif action == "reject":
+        kyc.status = "rejected"
+    db.session.commit()
+    flash(f"KYC {action}d successfully.", "success")
+    return redirect(url_for("admin.list_kyc"))
+
+
+
+@admin_bp.route("/reject_kyc/<int:kyc_id>", methods=["POST"])
+@login_required
+def reject_kyc(kyc_id):
+    if current_user.role != "admin":
+        flash("Unauthorized", "danger")
+        return redirect(url_for("admin.admin_dashboard"))
+
+    kyc = AgentKYC.query.get_or_404(kyc_id)
+    kyc.status = "rejected"
+    kyc.user.is_verified = False
+    db.session.commit()
+
+    flash("KYC rejected successfully!", "warning")
+    return redirect(url_for("admin.admin_dashboard"))
+
+@admin_bp.route("/list_kyc")
+@login_required
+def list_kyc():
+    """Display all agent KYC requests."""
+    kycs = AgentKYC.query.order_by(AgentKYC.created_at.desc()).all()
+    return render_template("admin/adminkyc.html", kycs=kycs)

@@ -11,6 +11,7 @@ from app.utils. payout_utils import initiate_paystack_transfer
 from app.utils.payout_utils import get_or_create_wallet,to_decimal
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from app.utils.email import send_email  # adjust path based on where send_email is defined
+from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from app.routes.utils import generate_reference
 from decimal import Decimal
@@ -44,7 +45,7 @@ from sqlalchemy.sql import func
 from flask_login import current_user
 from app.models import BookingRequest, Notification
 from app.extensions import db
-from app.models import BookingRequest,Wallet,Wishlist,FundTransfer,ProductReview,AdminRevenue,Order,WalletTransaction, InspectionFeedback,SubscriptionPlan,PayoutTransaction
+from app.models import BookingRequest,Wallet,Wishlist,ServiceEscrow,FundTransfer,ProductReview,AdminRevenue,Order,WalletTransaction, InspectionFeedback,SubscriptionPlan,PayoutTransaction
 from app.forms import FeedbackForm,EscrowPaymentForm,PayoutForm,BankDetailsForm,WithdrawalForm,CreateOrderForm
 from app.utils.paystack import (create_transfer_recipient,verify_account_number,
                                 get_banks_from_paystack,create_recipient_code,resolve_account_name,get_banks_from_api)
@@ -213,7 +214,9 @@ def my_dashboard():
         released_percent=released_percent,
         recipients=recipients,
         products=products,
-        top_products=top_products
+        top_products=top_products,
+
+        timedelta=timedelta
     )
 
 @seller_dashboard_bp.context_processor
@@ -616,26 +619,39 @@ def product_detail(product_id):
         func.lower(User.state) != func.lower(product.state)
     ).order_by(func.random()).limit(4).all()
 
+    # fetch reviews linked to orders for this product
+    reviews = (
+        Review.query.join(Order)
+        .filter(Order.product_id == product.id, Review.order_id != None)
+        .all()
+    )
+    reviews = product.reviews
+    total_reviews = len(reviews)
+
+    if total_reviews > 0:
+        avg_rating = sum(r.rating for r in reviews) / total_reviews
+    else:
+        avg_rating = 0
+
+    avg_rating_rounded = round(avg_rating, 1)
+
     return render_template(
         'product_detail.html',
         product=product,
         product_id=product_id,
         seller=seller,
         agent=agent,
+        total_reviews=total_reviews,
+        avg_rating=avg_rating,
+        avg_rating_rounded=avg_rating_rounded,
         similar_products=similar_products,
         nearby_agents=nearby_agents,
         random_agents=random_agents,
         reviews=reviews,
-        average_rating=round(average_rating, 1),
-        total_reviews=total_reviews,
         positive_reviews=positive_reviews,
         neutral_reviews=neutral_reviews,
         negative_reviews=negative_reviews,
-        product_reviews=product_reviews,
-        product_average_rating=round(product_average_rating, 1),
-        product_total_reviews=product_total_reviews
     )
-
 
 
 @seller_dashboard_bp.route('/report-product/<int:product_id>', methods=['POST'])
@@ -2026,7 +2042,7 @@ def withdraw():
 @login_required
 def my_products():
     products = Product.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(Product.created_at.desc()).all()
-    return render_template("list.html", products=products)
+    return render_template("list.html", products=products,now=datetime.utcnow())
 
 
 
@@ -2365,6 +2381,7 @@ def wallet():
 
 
 # in seller_dashboard routes
+# in seller_dashboard routes
 @seller_dashboard_bp.route("/get_recipients/<recipient_type>")
 @login_required
 def get_recipients(recipient_type):
@@ -2398,55 +2415,69 @@ from decimal import Decimal, ROUND_HALF_UP
 @login_required
 def transfer_funds():
     sender = current_user
-    amount = Decimal(request.form.get('amount', '0.00')).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    amount = Decimal(request.form.get('amount', '0.00')).quantize(Decimal("0.01"))
     recipient_type = request.form.get('recipient_type')
     recipient_id = int(request.form.get('recipient_id'))
 
-    sender_wallet = get_or_create_wallet(sender.id)
-
-    # Calculate total including admin fee for escrow
-    admin_fee = (amount * Decimal("0.03")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    total_amount = amount + admin_fee
-
-    if sender_wallet.balance < total_amount:
-        flash("Insufficient funds!", "danger")
+    if amount <= 0:
+        flash("Enter a valid amount.", "warning")
         return redirect(url_for('seller_dashboard.my_dashboard'))
 
-    # ---------- Escrow ----------
+    # ---------- Escrow Transfer ----------
     if recipient_type in ["escrow_agent", "escrow_logistics"]:
         escrow_type = "agent" if recipient_type == "escrow_agent" else "logistics"
 
+        # Calculate admin fee (3%) and total
+        admin_fee = (amount * Decimal("0.03")).quantize(Decimal("0.01"))
+        total_amount = amount + admin_fee
+
+        # Deduct total from buyer wallet
+        buyer_wallet = get_or_create_wallet(sender.id)
+        if buyer_wallet.balance < total_amount:
+            flash("Insufficient funds!", "danger")
+            return redirect(url_for('seller_dashboard.my_dashboard'))
+
+        buyer_wallet.balance -= total_amount
+        db.session.add(WalletTransaction(
+            wallet_id=buyer_wallet.id,
+            user_id=sender.id,
+            amount=-total_amount,
+            transaction_type="escrow_hold",
+            description=f"Escrow payment holding for {escrow_type} User {recipient_id}",
+            reference=str(uuid.uuid4())
+        ))
+
+        # Create new escrow record
         escrow = EscrowPayment(
             buyer_id=sender.id,
             provider_id=recipient_id,
             product_id=None,
-            amount=amount,             # provider portion
-            total_amount=total_amount, # includes admin fee
-            base_amount=amount,
+            amount=amount,             # Portion for agent/seller
+            total_amount=total_amount, # Includes admin fee
+            base_amount=amount,        # Only what agent/seller will receive
             escrow_fee=admin_fee,
             status="paid",
             is_paid=True,
             type=escrow_type,
             reference=str(uuid.uuid4()),
             created_at=datetime.utcnow(),
-            partial_release_amount=Decimal("0.00")  # not released yet
+            partial_release_amount=Decimal("0.00")  # Not released yet
         )
         db.session.add(escrow)
+        db.session.commit()
 
-        # Deduct total from buyer wallet
-        sender_wallet.balance -= total_amount
-        db.session.add(WalletTransaction(
-            wallet_id=sender_wallet.id,
-            user_id=sender.id,
-            amount=-total_amount,
-            transaction_type="escrow_hold",
-            description=f"Escrow payment (holding) for {escrow_type} User {recipient_id}",
-            reference=str(uuid.uuid4())
-        ))
+        flash(f"Escrow payment of ₦{amount:.2f} created for {escrow_type}. Admin fee: ₦{admin_fee:.2f}.", "success")
+        return redirect(url_for('seller_dashboard.my_dashboard'))
 
-    # ---------- Direct Payment ----------
+    # ---------- Direct Wallet Transfer ----------
     else:
         recipient_wallet = get_or_create_wallet(recipient_id)
+        sender_wallet = get_or_create_wallet(sender.id)
+
+        if sender_wallet.balance < amount:
+            flash("Insufficient funds!", "danger")
+            return redirect(url_for('seller_dashboard.my_dashboard'))
+
         sender_wallet.balance -= amount
         recipient_wallet.balance += amount
 
@@ -2466,10 +2497,10 @@ def transfer_funds():
             description=f"Received direct payment from User {sender.id}",
             reference=str(uuid.uuid4())
         ))
+        db.session.commit()
 
-    db.session.commit()
-    flash("Payment successful! Escrow is now paid and pending release.", "success")
-    return redirect(url_for('seller_dashboard.my_dashboard'))
+        flash(f"Direct payment of ₦{amount:.2f} successful!", "success")
+        return redirect(url_for('seller_dashboard.my_dashboard'))
 
 @seller_dashboard_bp.route('/my-escrows')
 @login_required
@@ -2657,51 +2688,89 @@ import uuid
 from decimal import Decimal
 from flask import request, redirect, url_for, flash
 
+from decimal import Decimal, ROUND_HALF_UP
+from flask import flash, redirect, url_for, request
+from flask_login import login_required, current_user
+
+# seller_dashboard.py (inside your blueprint)
+
+from decimal import Decimal, ROUND_HALF_UP
+from flask import request, flash, redirect, url_for
+from flask_login import login_required, current_user
+from datetime import datetime
+from app import db
+from app.models import EscrowPayment, Wallet, WalletTransaction
+
+from decimal import Decimal, ROUND_HALF_UP
+
 @seller_dashboard_bp.route('/release-escrow/<int:escrow_id>', methods=['POST'])
 @login_required
 def release_escrow(escrow_id):
     escrow = EscrowPayment.query.get_or_404(escrow_id)
+
     try:
         if not escrow.is_paid:
-            flash("Escrow payment has not been verified yet.", "warning")
+            flash("Escrow payment not verified.", "warning")
             return redirect(url_for('seller_dashboard.my_dashboard'))
 
-        amount_to_release = to_decimal(request.form.get("amount", "0"))
-        pending_amount = to_decimal(escrow.total_amount) - to_decimal(escrow.partial_release_amount)
-
-        if amount_to_release <= 0 or amount_to_release > pending_amount:
-            flash("Enter a valid amount within the pending balance.", "warning")
+        if escrow.is_released:
+            flash("Escrow already released.", "warning")
             return redirect(url_for('seller_dashboard.my_dashboard'))
 
-        # Credit seller wallet
-        seller_wallet = Wallet.query.filter_by(user_id=escrow.provider_id).first()
-        if not seller_wallet:
-            seller_wallet = Wallet(user_id=escrow.provider_id, balance=Decimal("0.00"))
-            db.session.add(seller_wallet)
-        seller_wallet.balance += amount_to_release
+        # Convert amounts to Decimal
+        agent_amount = Decimal(escrow.base_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        admin_amount = Decimal(escrow.escrow_fee or 0).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-        # Credit admin wallet (3% fee)
-        admin_fee = (amount_to_release * Decimal("0.03")).quantize(Decimal("0.01"))
-        if admin_fee > 0:
-            admin_wallet = Wallet.query.filter_by(user_id=7).first()
-            if admin_wallet:
-                admin_wallet.balance += admin_fee
+        # Credit agent wallet
+        agent_wallet = Wallet.query.filter_by(user_id=escrow.provider_id).first()
+        if not agent_wallet:
+            agent_wallet = Wallet(user_id=escrow.provider_id, balance=Decimal("0.00"))
+            db.session.add(agent_wallet)
+        agent_wallet.balance += agent_amount  # Decimal + Decimal
+
+        # Credit admin wallet (user_id=7)
+        admin_wallet = Wallet.query.filter_by(user_id=7).first()
+        if not admin_wallet:
+            admin_wallet = Wallet(user_id=7, balance=Decimal("0.00"))
+            db.session.add(admin_wallet)
+        admin_wallet.balance += admin_amount
+
+        # Record wallet transactions
+        db.session.add(WalletTransaction(
+            wallet_id=agent_wallet.id,
+            user_id=escrow.provider_id,
+            amount=agent_amount,
+            transaction_type="credit",
+            description=f"Escrow release from ID {escrow.id}",
+            reference=str(uuid.uuid4())
+        ))
+        db.session.add(WalletTransaction(
+            wallet_id=admin_wallet.id,
+            user_id=7,
+            amount=admin_amount,
+            transaction_type="credit",
+            description=f"Admin fee from escrow ID {escrow.id}",
+            reference=str(uuid.uuid4())
+        ))
 
         # Update escrow
-        escrow.partial_release_amount = (to_decimal(escrow.partial_release_amount) + amount_to_release)
-        if escrow.partial_release_amount >= to_decimal(escrow.total_amount):
-            escrow.is_released = True
-            escrow.status = "released"
-            escrow.released_at = datetime.utcnow()
+        escrow.partial_release_amount = agent_amount
+        escrow.amount_to_seller = agent_amount
+        escrow.admin_fee = admin_amount
+        escrow.is_released = True
+        escrow.status = "released"
+        escrow.released_at = datetime.utcnow()
 
         db.session.commit()
-        flash(f"Released ₦{amount_to_release:.2f} to Provider. Admin fee: ₦{admin_fee:.2f}.", "success")
+        flash(f"Released ₦{agent_amount} to Agent. Admin fee: ₦{admin_amount}.", "success")
         return redirect(url_for('seller_dashboard.my_dashboard'))
 
     except Exception as e:
         db.session.rollback()
         flash(f"An unexpected error occurred: {str(e)}", "danger")
         return redirect(url_for('seller_dashboard.my_dashboard'))
+
+
 
 
 @seller_dashboard_bp.route('/pay_agent/<int:provider_id>', methods=['POST'])
@@ -2997,3 +3066,49 @@ def agent_setup_payout():
             flash("Paystack Error: " + result.get("message", "Could not create recipient"), "danger")
 
     return render_template("agents/agent_payout.html", form=form, banks=banks)
+
+@seller_dashboard_bp.route("/orders/<int:order_id>/review", methods=["POST"])
+@login_required
+def add_order_review(order_id):
+    order = Order.query.get_or_404(order_id)
+
+    # ✅ Ensure buyer is the one reviewing
+    if current_user.id != order.buyer_id:
+        flash("Only the buyer can review this order.", "danger")
+        return redirect(url_for("seller_dashboard.order_detail", order_id=order.id))
+
+    # ✅ Must be completed
+    if order.status != StatusEnum.completed:
+        flash("You can only review after completing the order.", "warning")
+        return redirect(url_for("seller_dashboard.order_detail", order_id=order.id))
+
+    # ✅ Prevent duplicate review
+    existing = Review.query.filter_by(order_id=order.id, reviewer_id=current_user.id).first()
+    if existing:
+        flash("You already reviewed this order.", "info")
+        return redirect(url_for("seller_dashboard.order_detail", order_id=order.id))
+
+    # ✅ Save review
+    review = Review(
+        order_id=order.id,
+        product_id=order.product_id,
+        reviewer_id=current_user.id,
+        reviewee_id=order.seller_id,
+        rating=int(request.form['rating']),
+        comment=request.form['comment']
+    )
+    db.session.add(review)
+    db.session.commit()
+
+    flash("Review submitted successfully.", "success")
+    return redirect(url_for("seller_dashboard.order_detail", order_id=order.id))
+
+from sqlalchemy import func
+
+def get_product_rating(product_id):
+    result = db.session.query(
+        func.count(Review.id).label("total_reviews"),
+        func.avg(Review.rating).label("average_rating")
+    ).filter(Review.product_id == product_id).first()
+
+    return result.total_reviews or 0, round(result.average_rating or 0, 1)

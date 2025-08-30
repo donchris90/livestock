@@ -1,6 +1,10 @@
+from datetime import datetime, timedelta
+from app.models import  Product
+from flask_socketio import SocketIO,socketio
+
 def notify_booking_parties(agent_id, buyer_id, product_id=None):
     from app.models import Notification, Product
-    from app.extensions import db, socketio
+    from app.extensions import db,socketio
 
     notifications = []
 
@@ -34,3 +38,29 @@ def notify_booking_parties(agent_id, buyer_id, product_id=None):
             'message': message,
             'user_id': user_id
         }, room=str(user_id))
+
+def check_featured_expiry():
+    now = datetime.utcnow()
+    warning_threshold = now + timedelta(days=3)  # Products expiring within 3 days
+
+    # Query all featured products
+    featured_products = Product.query.filter_by(is_featured=True).all()
+
+    for product in featured_products:
+        user = product.user  # Assuming relationship: product.user
+        status = None
+        message = None
+
+        if product.featured_expiry and product.featured_expiry < now:
+            status = 'expired'
+            message = f'Your featured product "{product.title}" has expired.'
+        elif product.featured_expiry and product.featured_expiry <= warning_threshold:
+            status = 'expiring_soon'
+            message = f'Your featured product "{product.title}" is expiring soon.'
+
+        if status and message:
+            # Emit notification to seller
+            socketio.emit('featured_notification', {
+                'message': message,
+                'status': status
+            }, room=f"user_{user.id}")

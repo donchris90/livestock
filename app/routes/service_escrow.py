@@ -134,6 +134,8 @@ def create_topup_session():
     auth_url = res_data["data"]["authorization_url"]
     return jsonify({"payment_url": auth_url})
 
+from decimal import Decimal, ROUND_HALF_UP
+
 @service_escrow_bp.route('/verify-topup/<reference>', methods=['GET'])
 def verify_topup(reference):
     headers = {
@@ -151,36 +153,33 @@ def verify_topup(reference):
     if data["status"] != "success":
         return jsonify({"error": "Payment not successful"}), 400
 
-    # Extract from Paystack metadata
+    # Extract metadata
     user_id = data["metadata"].get("user_id")
-    amount = float(data["amount"]) / 100  # Amount in Naira
+    amount = Decimal(data["amount"]) / Decimal(100)  # Amount in Naira
 
     try:
         # Calculate fee and net amount
-        fee = round(amount * 0.01, 2)
-        net_amount = amount - fee
+        fee = (amount * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        net_amount = (amount - fee).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         # Get or create wallets
         user_wallet = get_or_create_wallet(user_id)
-        admin_wallet = get_or_create_wallet(7)  # assuming user_id=1 is admin
+        admin_wallet = get_or_create_wallet(7)  # admin user_id
 
         # Credit wallets
         user_wallet.balance += net_amount
         admin_wallet.balance += fee
 
-        # Create user transaction record
+        # Record transactions
         user_transaction = WalletTransaction(
             user_id=user_id,
             wallet_id=user_wallet.id,
             amount=net_amount,
             transaction_type="topup",
-            description=f"Wallet top-up of ₦{net_amount:.2f} after ₦{fee:.2f} fee via Paystack",
+            description=f"Wallet top-up of ₦{net_amount} after ₦{fee} fee via Paystack",
             status="success",
             reference=reference
         )
-        db.session.add(user_transaction)
-
-        # Create admin transaction record (optional, for tracking)
         admin_transaction = WalletTransaction(
             user_id=7,
             wallet_id=admin_wallet.id,
@@ -190,12 +189,16 @@ def verify_topup(reference):
             status="success",
             reference=reference
         )
-        db.session.add(admin_transaction)
 
+        db.session.add(user_transaction)
+        db.session.add(admin_transaction)
         db.session.commit()
 
-        return jsonify({"message": f"Wallet credited with ₦{net_amount:.2f}, ₦{fee:.2f} sent to admin as fee"}), 200
+        return jsonify({
+            "message": f"Wallet credited with ₦{net_amount}, ₦{fee} sent to admin as fee",
+            "wallet_balance": float(user_wallet.balance)
+        }), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Failed to update wallet"}), 500
+        return jsonify({"error": f"Failed to update wallet: {str(e)}"}), 500

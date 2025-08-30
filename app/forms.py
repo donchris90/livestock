@@ -218,3 +218,56 @@ class CreateOrderForm(FlaskForm):
     notes = TextAreaField("Additional Notes (optional)")
     submit = SubmitField("Create Order")
 
+# app/agents/forms.py
+from flask_wtf import FlaskForm
+from wtforms import FileField, SubmitField
+from flask_wtf.file import FileAllowed, FileRequired
+
+# app/agents/forms.py
+from flask_wtf import FlaskForm
+from wtforms import MultipleFileField, SubmitField
+from flask_wtf.file import FileAllowed, FileRequired
+
+from flask_wtf import FlaskForm
+from wtforms import StringField, SelectField, MultipleFileField, SubmitField
+from wtforms.validators import DataRequired, Optional
+from flask_wtf.file import FileAllowed
+
+class DocumentUploadForm(FlaskForm):
+    full_name = StringField(
+        "Full Name",
+        validators=[DataRequired(), Length(min=3, max=100)]
+    )
+
+    address = TextAreaField(
+        "Address",
+        validators=[DataRequired(), Length(min=5, max=255)]
+    )
+
+    document_type = SelectField(
+        "Type of Document",
+        choices=[
+            ("nin", "NIN"),
+            ("drivers_license", "Driver’s License"),
+            ("passport", "International Passport"),
+        ],
+        validators=[DataRequired()]
+    )
+
+    documents = MultipleFileField(
+        "Upload Supporting Documents (Optional)",
+        validators=[
+            FileAllowed(['jpg', 'jpeg', 'png', 'pdf'], "Images or PDFs only!")
+        ]
+    )
+
+    submit = SubmitField("Submit KYC")
+
+
+class EditProfileForm(FlaskForm):
+    first_name = StringField("First Name", validators=[DataRequired()])
+    last_name = StringField("Last Name", validators=[DataRequired()])
+    about = TextAreaField("About", validators=[Optional()])
+    profile_photo = FileField("Profile Photo", validators=[Optional()])
+    company_name = StringField("Company Name", validators=[Optional()])
+    submit = SubmitField("Save Changes")

@@ -13,7 +13,8 @@
                 {% for note in notifications %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{ note.message }}
-                        <small class="text-muted">{{ note.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                        <small class="text-muted">{{ note.timestamp.strftime('%b %d, %Y %I:%M %p') }}</small>
+
                     </li>
                 {% endfor %}
             </ul>

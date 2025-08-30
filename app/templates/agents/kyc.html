@@ -1,0 +1,91 @@
+{% extends "agents/base.html" %}
+{% block content %}
+<div class="container my-5">
+    <h3>Submit KYC Documents</h3>
+    <form method="POST" enctype="multipart/form-data">
+        <!-- Full Name -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Full Name</label>
+            <input type="text" name="full_name" class="form-control" placeholder="Enter full name" required>
+        </div>
+
+        <!-- Address -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Address</label>
+            <input type="text" name="address" class="form-control" placeholder="Enter address" required>
+        </div>
+
+        <!-- Document Type -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Document Type</label>
+            <select name="document_type" class="form-select" required>
+                <option value="">Select Type</option>
+                <option value="NIN">NIN</option>
+                <option value="Driver License">Driver License</option>
+                <option value="Int'l Passport">Int'l Passport</option>
+            </select>
+        </div>
+
+        <!-- Upload Files -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Upload Documents</label>
+            <input type="file" name="documents" id="documents" class="form-control" multiple accept="image/*,.pdf">
+            <div class="form-text">You can upload multiple files (jpg, png, pdf).</div>
+        </div>
+
+        <!-- Preview Area -->
+        <div id="preview" class="d-flex flex-wrap gap-2 mb-3"></div>
+
+        <button type="submit" class="btn btn-primary w-100">Submit KYC</button>
+    </form>
+</div>
+
+<script>
+const input = document.getElementById('documents');
+const preview = document.getElementById('preview');
+
+input.addEventListener('change', () => {
+    preview.innerHTML = "";
+    Array.from(input.files).forEach((file, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.style.width = '100px';
+                img.style.height = '100px';
+                img.style.objectFit = 'cover';
+                img.classList.add('img-thumbnail', 'me-2');
+                wrapper.appendChild(img);
+            } else {
+                wrapper.textContent = '📄 ' + file.name;
+            }
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = '✖';
+            btn.classList.add('btn', 'btn-sm', 'btn-danger');
+            btn.style.position = 'absolute';
+            btn.style.top = '0';
+            btn.style.right = '0';
+            btn.onclick = () => {
+                removeFile(index);
+                wrapper.remove();
+            };
+            wrapper.appendChild(btn);
+        };
+        reader.readAsDataURL(file);
+        preview.appendChild(wrapper);
+    });
+});
+
+function removeFile(index) {
+    const dt = new DataTransfer();
+    Array.from(input.files).forEach((file, i) => { if (i !== index) dt.items.add(file); });
+    input.files = dt.files;
+}
+</script>
+{% endblock %}

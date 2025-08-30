@@ -1,0 +1,120 @@
+<form method="POST" enctype="multipart/form-data" style="max-width:500px;margin:auto;padding:20px;background:#fff;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+  <h3 style="text-align:center;margin-bottom:20px;">KYC Document Upload</h3>
+
+  <div style="margin-bottom:15px;">
+    <label style="font-weight:bold;">Full Name</label>
+    <input type="text" name="full_name" required
+           style="width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;margin-top:5px;">
+  </div>
+
+  <div style="margin-bottom:15px;">
+    <label style="font-weight:bold;">Address</label>
+    <input type="text" name="address"
+           style="width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;margin-top:5px;">
+  </div>
+
+  <div style="margin-bottom:15px;">
+    <label style="font-weight:bold;">Document Type</label>
+    <select name="doc_type" required
+            style="width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;margin-top:5px;">
+      <option value="">Select Type</option>
+      <option value="ID">ID</option>
+      <option value="License">License</option>
+      <option value="Certificate">Certificate</option>
+    </select>
+  </div>
+
+  <div style="margin-bottom:15px;">
+    <label style="font-weight:bold;">Upload Documents</label>
+    <input type="file" name="documents" id="documents" multiple accept="image/*,application/pdf"
+           style="display:block;margin-top:5px;">
+    <small style="color:#777;">You can upload multiple files (jpg, png, pdf)</small>
+  </div>
+
+  <!-- Preview Area -->
+  <div id="preview" style="display:flex;flex-wrap:wrap;gap:15px;margin-top:15px;"></div>
+
+  <button type="submit"
+          style="width:100%;padding:12px;background:#007bff;color:white;border:none;border-radius:6px;font-size:16px;cursor:pointer;transition:0.3s;">
+    Upload
+  </button>
+</form>
+
+<script>
+  const input = document.getElementById("documents");
+  const preview = document.getElementById("preview");
+
+  input.addEventListener("change", () => {
+    preview.innerHTML = ""; // clear old previews
+
+    Array.from(input.files).forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const wrapper = document.createElement("div");
+        wrapper.style.position = "relative";
+        wrapper.style.width = "120px";
+        wrapper.style.height = "150px";
+        wrapper.style.border = "1px solid #ddd";
+        wrapper.style.borderRadius = "10px";
+        wrapper.style.overflow = "hidden";
+        wrapper.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+        wrapper.style.display = "flex";
+        wrapper.style.flexDirection = "column";
+        wrapper.style.alignItems = "center";
+        wrapper.style.justifyContent = "center";
+        wrapper.style.background = "#f9f9f9";
+
+        const img = document.createElement("img");
+        img.src = e.target.result;
+        img.style.width = "100%";
+        img.style.height = "100px";
+        img.style.objectFit = "cover";
+
+        const filename = document.createElement("div");
+        filename.textContent = file.name.length > 12 ? file.name.substring(0, 12) + "..." : file.name;
+        filename.style.fontSize = "12px";
+        filename.style.color = "#555";
+        filename.style.padding = "5px";
+        filename.style.textAlign = "center";
+
+        // delete button
+        const btn = document.createElement("button");
+        btn.innerHTML = "✖";
+        btn.type = "button";
+        btn.style.position = "absolute";
+        btn.style.top = "5px";
+        btn.style.right = "5px";
+        btn.style.background = "rgba(255,0,0,0.7)";
+        btn.style.color = "white";
+        btn.style.border = "none";
+        btn.style.borderRadius = "50%";
+        btn.style.cursor = "pointer";
+        btn.style.width = "22px";
+        btn.style.height = "22px";
+        btn.style.display = "flex";
+        btn.style.alignItems = "center";
+        btn.style.justifyContent = "center";
+        btn.style.fontSize = "12px";
+
+        btn.addEventListener("click", () => {
+          removeFile(index);
+          wrapper.remove();
+        });
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(filename);
+        wrapper.appendChild(btn);
+        preview.appendChild(wrapper);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  function removeFile(index) {
+    const dt = new DataTransfer();
+    Array.from(input.files)
+      .filter((_, i) => i !== index)
+      .forEach((file) => dt.items.add(file));
+    input.files = dt.files;
+  }
+</script>

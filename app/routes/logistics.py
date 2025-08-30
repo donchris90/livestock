@@ -420,3 +420,13 @@ def reject_driver_booking(booking_id):
         flash('Booking rejected.', 'warning')
 
     return redirect(url_for('logistics.driver_dashboard'))
+
+@logistics_bp.route('/kyc', methods=['GET', 'POST'])
+@login_required
+def kyc():
+    if current_user.role != 'logistics':
+        flash("Access denied.", "danger")
+        return redirect(url_for('main.home'))
+
+    # Render KYC upload page
+    return render_template('logistics/kyc.html', user=current_user)

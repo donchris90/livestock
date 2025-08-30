@@ -44,9 +44,18 @@
         <ul class="dropdown-menu dropdown-menu-end">
           <li>
             <a class="dropdown-item" href="{{ url_for('agents.agent_profile', agent_id=current_user.id) }}">
+              View Profile
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{{ url_for('agents.edit_profile', agent_id=current_user.id) }}">
               Edit Profile
             </a>
           </li>
+
+<li class="nav-item">
+    <a class="dropdown-item" href="{{ url_for('agents.kyc') }}">Submit KYC</a>
+</li>
           <li>
            <a class="dropdown-item" href="{{ url_for('seller_dashboard.agent_bank_details') }}">
     Bank Details

@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <h3>Agent KYC Details</h3>
+    <div class="card shadow-sm p-4">
+        <h5 class="mb-3">Personal Information</h5>
+        <p><strong>Full Name:</strong> {{ kyc.full_name }}</p>
+        <p><strong>Address:</strong> {{ kyc.address }}</p>
+        <p><strong>Document Type:</strong> {{ kyc.document_type }}</p>
+        <p><strong>Status:</strong> 
+            {% if kyc.status == 'approved' %}
+                <span class="badge bg-success">Approved</span>
+            {% elif kyc.status == 'rejected' %}
+                <span class="badge bg-danger">Rejected</span>
+            {% else %}
+                <span class="badge bg-warning text-dark">Pending</span>
+            {% endif %}
+        </p>
+
+        <h5 class="mt-4 mb-3">Uploaded Documents</h5>
+        <div class="d-flex flex-wrap gap-3">
+            {% if kyc.document_images %}
+                {% for img in kyc.document_images %}
+                    {% set clean_path = img.replace('app\\static\\', '').replace('"', '').replace('\\', '/') %}
+                    {% if img.endswith('.pdf') %}
+                        <div class="d-flex flex-column text-center">
+                            <a href="{{ url_for('static', filename=clean_path) }}" target="_blank" class="btn btn-outline-secondary mb-1">
+                                📄 {{ clean_path.split('/')[-1] }}
+                            </a>
+                            <a href="{{ url_for('static', filename=clean_path) }}" download class="btn btn-sm btn-primary">Download</a>
+                        </div>
+                    {% else %}
+                        <div class="text-center">
+                            <a href="{{ url_for('static', filename=clean_path) }}" target="_blank">
+                                <img src="{{ url_for('static', filename=clean_path) }}" class="img-thumbnail" style="height:120px;">
+                            </a>
+                            <p class="small mt-1">{{ clean_path.split('/')[-1] }}</p>
+                            <a href="{{ url_for('static', filename=clean_path) }}" download class="btn btn-sm btn-primary mt-1">Download</a>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p>No documents uploaded.</p>
+            {% endif %}
+        </div>
+
+        <form method="POST" class="mt-4 d-flex gap-2">
+            <input type="hidden" name="action" value="approved">
+            <button type="submit" name="action" value="approved" class="btn btn-success">Approve</button>
+            <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+            <a href="{{ url_for('admin.list_kyc') }}" class="btn btn-secondary ms-auto">Back to KYC List</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

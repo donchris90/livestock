@@ -5,7 +5,20 @@
 
     <!-- Welcome Header -->
     <div class="mb-4 text-center">
-        <h1 class="fw-bold">👋 Welcome, {{ user.first_name }} {{ user.last_name }}</h1>
+        <h1 class="fw-bold">👋 Welcome, {{ agents.first_name }} {{ agents.last_name }}
+            {% if agents.kyc and agents.kyc.status == 'approved' %}
+                <span class="text-blue-500" title="Verified">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block align-middle" fill="currentColor" viewBox="0 0 24 24" style="width: 25px; height: 25px;">
+                        <path fill="currentColor" d="M22.5 12c0 5.8-4.7 10.5-10.5 10.5S1.5 17.8 1.5 12 6.2 1.5 12 1.5 22.5 6.2 22.5 12zm-11 4.8l6.3-6.3-1.4-1.4-4.9 4.9-2.1-2.1-1.4 1.4 3.5 3.5z"/>
+                    </svg>
+                </span>
+            {% endif %}
+        </h1>
+        {% if agents.kyc and agents.kyc.status == 'approved' %}
+            <span class="badge bg-success">Verified</span>
+        {% else %}
+            <span class="badge bg-secondary">Unverified</span>
+        {% endif %}
         <p class="text-muted">Here’s a summary of your profile, earnings, and bookings</p>
     </div>
 
@@ -17,12 +30,18 @@
             <div class="card shadow-sm p-3 text-center h-100">
                 <i class="bi bi-person-check-fill fs-3 text-primary mb-2"></i>
                 <h6>Profile Completion</h6>
-                <div class="progress mb-2">
-                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ profile_completion }}%" aria-valuenow="{{ profile_completion }}" aria-valuemin="0" aria-valuemax="100">
-                        {{ profile_completion }}%
-                    </div>
+                <div class="w-100 bg-light rounded-pill" style="height: 12px;">
+                    <div class="bg-success rounded-pill" style="width: {{ completion }}%; height: 12px;"></div>
                 </div>
-                <small>Complete your profile to attract more bookings</small>
+                <p class="mt-2 mb-1">{{ completion }}% complete</p>
+                <small class="d-block mb-2 text-muted">Complete your profile to attract more bookings</small>
+                {% if not user.kyc or user.kyc.status != 'approved' %}
+                    <div class="alert alert-warning py-2 px-2 mb-2">
+                        <small><strong>KYC Pending!</strong> Complete your verification to unlock full features.</small>
+                    </div>
+                    <a href="{{ url_for('agents.kyc') }}" class="btn btn-primary btn-sm w-75 mb-2">Complete KYC</a>
+                {% endif %}
+                <a href="{{ url_for('agents.edit_profile') }}" class="btn btn-outline-primary btn-sm w-75">Update Profile</a>
             </div>
         </div>
 
@@ -37,7 +56,7 @@
             </div>
         </div>
 
-        <!-- Total Earnings & Withdraw -->
+        <!-- Earnings -->
         <div class="col-md-4">
             <div class="card shadow-sm p-3 h-100">
                 <h5 class="fw-bold mb-3">💰 Earnings</h5>
@@ -48,20 +67,21 @@
                 <p><strong>Wallet Balance:</strong> ₦{{ "{:,.2f}".format(wallet.balance or 0) }}</p>
 
                 {% if wallet.balance > 0 %}
-                <form action="{{ url_for('seller_dashboard.agent_withdraw') }}" method="GET">
-                    <button type="submit" class="btn btn-primary btn-sm mt-2 w-100">
-                        Withdraw ₦{{ "{:,.2f}".format(wallet.balance) }}
-                    </button>
-                </form>
+                    <form action="{{ url_for('seller_dashboard.agent_withdraw') }}" method="GET">
+                        <button type="submit" class="btn btn-primary btn-sm mt-2 w-100">
+                            Withdraw ₦{{ "{:,.2f}".format(wallet.balance) }}
+                        </button>
+                    </form>
                 {% endif %}
             </div>
         </div>
 
     </div>
 
-    <!-- 💵 Escrow Status (Agent & Logistics) -->
+    <!-- 💵 Escrow Status -->
     <div class="card mb-4 shadow-sm p-3">
         <h5 class="mb-3">💵 Escrow Status (Agent & Logistics)</h5>
+
         {% if escrows %}
             <div class="progress mb-3">
                 {% set escrow_total = total_escrow_released + total_escrow_pending %}
@@ -71,29 +91,31 @@
                 </div>
             </div>
 
-            <div id="escrow-list">
-                {% for escrow in escrows %}
-                <div class="card mb-2 p-2 shadow-sm {% if escrow.status=='released' %}bg-light text-muted{% endif %}" id="escrow-{{ escrow.id }}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <strong>Provider:</strong> {{ escrow.provider.full_name }}<br>
-                            <strong>Type:</strong> {{ escrow.type|capitalize }}
-                        </div>
-                        <div class="text-end">
-                            <div class="released-amount">💰 Released: ₦{{ "{:,.2f}".format(escrow.partial_release_amount or 0) }}</div>
-                            <div class="pending-amount text-warning">⏳ Pending: ₦{{ "{:,.2f}".format((escrow.amount or 0) - (escrow.partial_release_amount or 0)) }}</div>
-                            <div class="status">📌 Status: {{ escrow.status.replace("_", " ").title() }}</div>
-                        </div>
-                    </div>
+           <div id="escrow-list">
+    {% for escrow in escrows %}
+        {% set released_amount = escrow.base_amount if escrow.status == 'released' else 0 %}
+        {% set pending_amount = escrow.base_amount if escrow.status != 'released' else 0 %}
+        <div class="card mb-2 p-2 shadow-sm {% if escrow.status=='released' %}bg-light text-muted{% endif %}" id="escrow-{{ escrow.id }}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>Provider:</strong> {{ escrow.provider.full_name }}<br>
+                    <strong>Type:</strong> {{ escrow.type|capitalize }}
                 </div>
-                {% endfor %}
+                <div class="text-end">
+                    <div class="released-amount">💰 Released: ₦{{ "{:,.2f}".format(released_amount) }}</div>
+                    <div class="pending-amount text-warning">⏳ Pending: ₦{{ "{:,.2f}".format(pending_amount) }}</div>
+                    <div class="status">📌 Status: {{ escrow.status.replace("_", " ").title() }}</div>
+                </div>
             </div>
-        {% else %}
-            <p>No escrows found.</p>
-        {% endif %}
-    </div>
+        </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>No escrows found.</p>
+{% endif %}
 
-    <!-- Recent Bookings -->
+
+    <!-- Recent Bookings & Feedback -->
     <div class="row g-3 mb-4">
         <div class="col-md-6">
             <div class="card shadow-sm p-3 h-100">
@@ -101,19 +123,19 @@
                 {% if recent_bookings %}
                     <ul class="list-group list-group-flush">
                         {% for booking in recent_bookings %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ booking.buyer.first_name }} {{ booking.buyer.last_name }}</strong><br>
-                                <small>{{ booking.date.strftime('%b %d, %Y %I:%M %p') }}</small>
-                            </div>
-                            {% if booking.status == 'completed' %}
-                                <span class="badge bg-success">{{ booking.status|capitalize }}</span>
-                            {% elif booking.status == 'pending' %}
-                                <span class="badge bg-warning text-dark">{{ booking.status|capitalize }}</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ booking.status|capitalize }}</span>
-                            {% endif %}
-                        </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ booking.buyer.first_name }} {{ booking.buyer.last_name }}</strong><br>
+                                    <small>{{ booking.date.strftime('%b %d, %Y %I:%M %p') }}</small>
+                                </div>
+                                {% if booking.status == 'completed' %}
+                                    <span class="badge bg-success">{{ booking.status|capitalize }}</span>
+                                {% elif booking.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">{{ booking.status|capitalize }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ booking.status|capitalize }}</span>
+                                {% endif %}
+                            </li>
                         {% endfor %}
                     </ul>
                 {% else %}
@@ -122,19 +144,18 @@
             </div>
         </div>
 
-        <!-- Recent Feedback -->
         <div class="col-md-6">
             <div class="card shadow-sm p-3 h-100">
                 <h5 class="mb-3">⭐ Recent Feedback</h5>
                 {% if recent_feedback %}
                     <ul class="list-group list-group-flush">
                         {% for feedback in recent_feedback %}
-                        <li class="list-group-item">
-                            <strong>{{ feedback.reviewer.first_name }} {{ feedback.reviewer.last_name }}</strong> rated
-                            <strong>{{ feedback.rating }}/5</strong>
-                            <p>{{ feedback.comment }}</p>
-                            <small class="text-muted">{{ feedback.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
-                        </li>
+                            <li class="list-group-item">
+                                <strong>{{ feedback.reviewer.first_name }} {{ feedback.reviewer.last_name }}</strong> rated
+                                <strong>{{ feedback.rating }}/5</strong>
+                                <p>{{ feedback.comment }}</p>
+                                <small class="text-muted">{{ feedback.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                            </li>
                         {% endfor %}
                     </ul>
                 {% else %}

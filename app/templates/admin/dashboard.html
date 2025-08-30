@@ -191,7 +191,7 @@
         <tr>
           <td>{{ p.title }}</td>
           <td>{{ p.category }}</td>
-          <td>{{ p.user.first_name }} {{ p.user.last_name }}</td>
+
           <td>
             {% if p.is_featured %} 🌟 Featured {% elif p.boost_score > 50 %} 📈 Boosted {% else %} Regular {% endif %}
           </td>

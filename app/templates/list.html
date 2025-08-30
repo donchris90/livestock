@@ -29,14 +29,31 @@
         {% endif %}
 
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <a href="{{ url_for('promotion.promote_product', product_id=product.id) }}" class="btn btn-outline-primary btn-sm">
-              🚀 Promote
-            </a>
-            {% if product.is_featured %}
-              <span class="badge bg-warning">🌟 Featured (expires {{ product.featured_expiry.strftime('%b %d') }})</span>
-            {% endif %}
-          </div>
+         <div class="d-flex justify-content-between align-items-center mb-2">
+  <a href="{{ url_for('promotion.promote_product', product_id=product.id) }}"
+     class="btn btn-outline-primary btn-sm">
+    🚀 Promote
+  </a>
+
+  {% if product.is_featured and product.featured_expiry and product.featured_expiry > now %}
+    <span class="badge bg-warning">
+      🌟 Featured (expires {{ product.featured_expiry.strftime('%b %d') }})
+    </span>
+  {% endif %}
+
+  {% if product.is_boosted and product.boost_expiry and product.boost_expiry > now %}
+    <span class="badge bg-info">
+      🚀 Boosted (expires {{ product.boost_expiry.strftime('%b %d') }})
+    </span>
+  {% endif %}
+
+  {% if product.is_top and product.top_expiry and product.top_expiry > now %}
+    <span class="badge bg-success">
+      🔝 Top (expires {{ product.top_expiry.strftime('%b %d') }})
+    </span>
+  {% endif %}
+</div>
+
 
           <h5 class="card-title">{{ product.title }}</h5>
           <p><strong>Type:</strong> {{ product.type }}</p>

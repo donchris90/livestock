@@ -7,6 +7,7 @@ from app.models import Product, db
 
 main_bp = Blueprint('main', __name__)
 
+
 @main_bp.route("/")
 def home():
     now = datetime.utcnow()
@@ -19,13 +20,12 @@ def home():
     min_price = request.args.get("min_price")
     max_price = request.args.get("max_price")
 
-    # Start base query
-    query = db.session.query(Product).options(joinedload(Product.owner)).filter(Product.is_deleted == False)
+    # Base query: all active products
+    base_query = Product.query.options(joinedload(Product.owner)).filter(Product.is_deleted == False)
 
-
-    # Apply filters
+    # Apply search filters
     if q:
-        query = query.filter(
+        base_query = base_query.filter(
             or_(
                 Product.title.ilike(f"%{q}%"),
                 Product.description.ilike(f"%{q}%"),
@@ -35,66 +35,52 @@ def home():
                 Product.state.ilike(f"%{q}%")
             )
         )
-
     if category:
-        query = query.filter(Product.category.ilike(f"%{category}%"))
+        base_query = base_query.filter(Product.category.ilike(f"%{category}%"))
     if state:
-        query = query.filter(Product.state.ilike(f"%{state}%"))
+        base_query = base_query.filter(Product.state.ilike(f"%{state}%"))
     if city:
-        query = query.filter(Product.city.ilike(f"%{city}%"))
+        base_query = base_query.filter(Product.city.ilike(f"%{city}%"))
 
+    # Price filter
     try:
         if min_price:
-            query = query.filter(Product.price >= float(min_price))
+            base_query = base_query.filter(Product.price >= float(min_price))
         if max_price:
-            query = query.filter(Product.price <= float(max_price))
+            base_query = base_query.filter(Product.price <= float(max_price))
     except ValueError:
         flash("Invalid price range", "warning")
 
-    # 🎯 Order promoted products first
-    query = query.filter(
-        or_(Product.promotion_end_date == None, Product.promotion_end_date > now)
-    )
+    # Only active promotions
+    base_query = base_query.filter(or_(Product.promotion_end_date == None, Product.promotion_end_date > now))
 
-    products = query.order_by(
+    # Fetch all products
+    all_products = base_query.order_by(
+        Product.is_boosted.desc(),
         Product.is_featured.desc(),
         Product.is_top.desc(),
-        Product.boost_score.desc(),
         Product.created_at.desc()
     ).all()
 
-    # 🌟 Featured products
-    featured_products = Product.query.filter(
-        Product.is_featured == True,
-        Product.promotion_end_date > now,
-        Product.is_deleted == False
-    ).order_by(Product.promotion_end_date.desc()).limit(10).all()
+    # Convert photos string to list if needed
+    for p in all_products:
+        if isinstance(p.photos, str):
+            p.photos = p.photos.strip("{}").replace('"', '').split(",")
 
-    # 📌 Top products
-    top_products = Product.query.filter(
-        Product.is_top == True,
-        Product.promotion_end_date > now,
-        Product.is_deleted == False
-    ).order_by(Product.promotion_end_date.desc()).limit(10).all()
-
-    # 📦 Regular products
-    regular_products = Product.query.filter(
-        (Product.is_featured == False) | (Product.promotion_end_date == None),
-        (Product.is_top == False),
-        Product.is_deleted == False
-    ).order_by(Product.created_at.desc()).all()
-
-    promote_product = products[0] if products else None
+    # Combine all products into one prioritized list
+    sorted_products = (
+            [p for p in all_products if p.is_boosted] +
+            [p for p in all_products if p.is_featured and not p.is_boosted] +
+            [p for p in all_products if p.is_top and not (p.is_boosted or p.is_featured)] +
+            [p for p in all_products if not (p.is_boosted or p.is_featured or p.is_top)]
+    )
 
     return render_template(
         "home.html",
-        products=products,
-        featured_products=featured_products,
-        top_products=top_products,
-        regular_products=regular_products,
-        promote_product=promote_product,
-        now=datetime.utcnow()# ✅ Add this line to fix the UndefinedError
+        sorted_products=sorted_products,
+        now=now
     )
+
 
 @main_bp.route('/agents')
 def view_agents():

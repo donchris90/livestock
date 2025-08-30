@@ -1,75 +1,111 @@
 {% extends "agents/base.html" %}
 
 {% block content %}
-  <div class="container mt-4">
-    <h3>{{ agent.first_name }} {{ agent.last_name }}</h3>
-    <p><strong>Location:</strong> {{ agent.city }}, {{ agent.state }}</p>
-    <p><strong>Email:</strong> {{ agent.email }}</p>
-    <p><strong>Phone:</strong> {{ agent.phone }}</p>
-    <!-- Add more fields like profile photo, bio, services, etc. -->
+<div class="container mt-4">
+  <!-- Agent Info Card -->
+  <div class="card shadow-sm p-4 mb-4">
+    <div class="d-flex align-items-center gap-3">
+      {% if agent.profile_photo %}
+  <img src="{{ url_for('static', filename=agent.profile_photo) }}"
+       class="img-thumbnail rounded-circle"
+       style="width:120px; height:120px; object-fit:cover;">
+{% else %}
+  <img src="{{ url_for('static', filename='default_profile.png') }}"
+       class="img-thumbnail rounded-circle"
+       style="width:120px; height:120px; object-fit:cover;">
+{% endif %}
+
+
+      <div>
+        <h4 class="d-flex align-items-center mb-1">
+          {{ agent.first_name }} {{ agent.last_name }}
+          {% if agent.kyc and agent.kyc.status == 'approved' %}
+            <span class="ms-2 text-primary" title="Verified">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"
+                   style="width:20px; height:20px;">
+                <path d="M22.5 12c0 5.8-4.7 10.5-10.5 10.5S1.5 17.8 1.5 12 6.2 1.5 12 1.5 22.5 6.2 22.5 12zm-11 4.8l6.3-6.3-1.4-1.4-4.9 4.9-2.1-2.1-1.4 1.4 3.5 3.5z"/>
+              </svg>
+            </span>
+          {% endif %}
+        </h4>
+        <span class="badge {% if agent.kyc and agent.kyc.status=='approved' %}bg-success{% else %}bg-secondary{% endif %}"
+              data-bs-toggle="tooltip" title="KYC {% if agent.kyc and agent.kyc.status=='approved' %}Verified{% else %}Pending{% endif %}">
+          {% if agent.kyc and agent.kyc.status=='approved' %}Verified{% else %}Unverified{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <p class="mb-1"><strong>Company:</strong> {{ agent.company_name or '-' }}</p>
+      <p class="mb-1"><strong>Location:</strong> {{ agent.street or '-' }}, {{ agent.city or '-' }}, {{ agent.state or '-' }}</p>
+      <p class="mb-1"><strong>Email:</strong> {{ agent.email or '-' }}</p>
+      <p class="mb-1"><strong>Phone:</strong> {{ agent.phone or '-' }}</p>
+      <p class="mb-1">
+        <span class="badge bg-warning text-dark">⭐ {{ average_rating }} ({{ total_reviews }} reviews)</span>
+      </p>
+    </div>
   </div>
 
+  <!-- Reviews Section -->
   {% if total_reviews > 0 %}
-    <div class="mt-4">
-        <h5>Agent Rating Summary</h5>
-        <div>
-            {% set full_stars = average_rating|round(0, 'floor')|int %}
-            {% set empty_stars = 5 - full_stars %}
-            <span class="text-warning fs-4">
-                {% for _ in range(full_stars) %}★{% endfor %}
-                {% for _ in range(empty_stars) %}☆{% endfor %}
-            </span>
-            <span class="text-muted ms-2">({{ total_reviews }} review{{ 's' if total_reviews != 1 else '' }})</span>
-        </div>
+  <div class="card shadow-sm p-4 mb-4">
+    <h5 class="mb-3">Agent Rating Summary</h5>
+    <div class="d-flex align-items-center mb-2">
+      {% set full_stars = average_rating|round(0, 'floor')|int %}
+      {% set empty_stars = 5 - full_stars %}
+      <span class="text-warning fs-4 me-2">
+        {% for _ in range(full_stars) %}★{% endfor %}
+        {% for _ in range(empty_stars) %}☆{% endfor %}
+      </span>
+      <small class="text-muted">({{ total_reviews }} review{{ 's' if total_reviews != 1 else '' }})</small>
     </div>
-{% endif %}
 
-<!-- Positive Reviews -->
-{% if positive_reviews %}
-    <div class="mt-4">
-        <h6 class="text-success">Positive Reviews</h6>
-        <div class="list-group">
-            {% for review in positive_reviews %}
-                <div class="list-group-item">
-                    <div class="d-flex justify-content-between">
-                        <strong>{{ review.reviewer.first_name }}</strong>
-                        <small class="text-muted">{{ review.created_at.strftime('%d %b, %Y') }}</small>
-                    </div>
-                    <div class="text-warning">
-                        {% for _ in range(review.rating) %}★{% endfor %}
-                        {% for _ in range(5 - review.rating) %}☆{% endfor %}
-                    </div>
-                    <p class="mb-1">{{ review.comment }}</p>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-{% else %}
-    <p class="text-muted mt-2">No positive reviews yet.</p>
-{% endif %}
+    <!-- Positive Reviews -->
+    <h6 class="text-success mt-3">Positive Reviews</h6>
+    {% if positive_reviews %}
+      <div class="list-group mb-3">
+        {% for review in positive_reviews %}
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between">
+              <strong>{{ review.reviewer.first_name or 'Anonymous' }}</strong>
+              <small class="text-muted">{{ review.created_at.strftime('%d %b, %Y') }}</small>
+            </div>
+            <div class="text-warning mb-1">
+              {% for _ in range(review.rating) %}★{% endfor %}
+              {% for _ in range(5 - review.rating) %}☆{% endfor %}
+            </div>
+            <p class="mb-0">{{ review.comment or '' }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted">No positive reviews yet.</p>
+    {% endif %}
 
-<!-- Negative Reviews -->
-{% if negative_reviews %}
-    <div class="mt-4">
-        <h6 class="text-danger">Negative Reviews</h6>
-        <div class="list-group">
-            {% for review in negative_reviews %}
-                <div class="list-group-item">
-                    <div class="d-flex justify-content-between">
-                        <strong>{{ review.reviewer.first_name }}</strong>
-                        <small class="text-muted">{{ review.created_at.strftime('%d %b, %Y') }}</small>
-                    </div>
-                    <div class="text-warning">
-                        {% for _ in range(review.rating) %}★{% endfor %}
-                        {% for _ in range(5 - review.rating) %}☆{% endfor %}
-                    </div>
-                    <p class="mb-1">{{ review.comment }}</p>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-{% else %}
-    <p class="text-muted mt-2">No negative reviews yet.</p>
-{% endif %}
-
+    <!-- Negative Reviews -->
+    <h6 class="text-danger mt-3">Negative Reviews</h6>
+    {% if negative_reviews %}
+      <div class="list-group">
+        {% for review in negative_reviews %}
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between">
+              <strong>{{ review.reviewer.first_name or 'Anonymous' }}</strong>
+              <small class="text-muted">{{ review.created_at.strftime('%d %b, %Y') }}</small>
+            </div>
+            <div class="text-warning mb-1">
+              {% for _ in range(review.rating) %}★{% endfor %}
+              {% for _ in range(5 - review.rating) %}☆{% endfor %}
+            </div>
+            <p class="mb-0">{{ review.comment or '' }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted">No negative reviews yet.</p>
+    {% endif %}
+  </div>
+  {% else %}
+    <p class="text-muted">No reviews yet.</p>
+  {% endif %}
+</div>
 {% endblock %}

@@ -3,9 +3,9 @@ from flask import Blueprint, render_template, flash, redirect, url_for,abort, re
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.routes.utils import create_notification,mail
-from app.models import EscrowPayment,WalletTransaction
+from app.models import EscrowPayment,WalletTransaction,AgentKYC
 from app.utils.payout_utils import get_or_create_wallet
-from app.forms import FeedbackForm
+from app.forms import FeedbackForm,DocumentUploadForm
 import os
 from flask import request, redirect, url_for, flash
 from flask_login import login_required, current_user
@@ -45,32 +45,52 @@ def allowed_file(filename, allowed_exts):
 def agent_dashboard():
     user = current_user
     page = request.args.get('page', 1, type=int)
+
     # --- Booking stats ---
     total_bookings = BookingRequest.query.filter_by(agent_id=user.id).count()
-    completed_bookings = BookingRequest.query.filter_by(agent_id=user.id, status='completed').count()
+    completed_bookings = BookingRequest.query.filter_by(agent_id=user.id, status='buyer_confirmed').count()
     pending_bookings = BookingRequest.query.filter_by(agent_id=user.id, status='pending').count()
-    recent_bookings = BookingRequest.query.filter_by(agent_id=user.id)\
-        .order_by(BookingRequest.date.desc()).limit(5).all()
+    recent_bookings = BookingRequest.query.filter_by(agent_id=user.id) \
+        # --- Revenue Summary (Orders + Escrow) ---
+    total_earned_orders = db.session.query(func.sum(Order.agreed_price)) \
+                              .filter(Order.agent_id == user.id, Order.status == 'completed').scalar() or 0
+    pending_orders = db.session.query(func.sum(Order.agreed_price)) \
+                         .filter(Order.agent_id == user.id, Order.status == 'pending').scalar() or 0
 
-    # --- Revenue Summary (Orders + Escrow) ---
-    # Orders
-    total_earned_orders = db.session.query(func.sum(Order.agreed_price))\
-        .filter(Order.agent_id == user.id, Order.status == 'completed').scalar() or 0
-    pending_orders = db.session.query(func.sum(Order.agreed_price))\
-        .filter(Order.agent_id == user.id, Order.status == 'pending').scalar() or 0
+    # All escrows for this agent
+    all_escrows = EscrowPayment.query.filter(
+        EscrowPayment.provider_id == user.id,
+        EscrowPayment.type.in_(['agent', 'logistics'])
+    ).all()
 
-    # Escrow payments
-    escrows = EscrowPayment.query.filter(
+    # Only sum escrows that are fully released
+    total_escrow_released = sum(e.base_amount for e in all_escrows if e.status == "released")
+
+    # Pending is only escrows that are paid but not yet released
+    total_escrow_pending = sum(e.base_amount for e in all_escrows if e.status != "released")
+
+    total_earned = total_earned_orders + total_escrow_released
+    pending_payment = pending_orders + total_escrow_pending
+
+    # --- Recent 5 Escrows for display ---
+    recent_escrows = EscrowPayment.query.filter(
         EscrowPayment.provider_id == user.id,
         EscrowPayment.type.in_(['agent', 'logistics'])
     ).order_by(EscrowPayment.created_at.desc()).limit(5).all()
 
-    total_escrow_released = sum(e.partial_release_amount or 0 for e in escrows)
-    total_escrow_pending = sum((e.amount or 0) - (e.partial_release_amount or 0) for e in escrows)
+    recent_escrows_display = []
+    for e in recent_escrows:
+        released_amount = e.base_amount if e.status == "released" else 0
+        pending_amount = e.base_amount if e.status != "released" else 0
 
-    # Total earnings including released escrow + direct payments
-    total_earned = total_earned_orders + total_escrow_released
-    pending_payment = pending_orders + total_escrow_pending
+        recent_escrows_display.append({
+            "id": e.id,
+            "provider_name": e.provider.full_name,
+            "type": e.type.capitalize(),
+            "released_amount": released_amount,
+            "pending_amount": pending_amount,
+            "status": e.status.capitalize(),
+        })
 
     # --- Ratings / Feedback ---
     average_rating = db.session.query(func.avg(Review.rating))\
@@ -90,49 +110,55 @@ def agent_dashboard():
     ])
     total_fields = 5
     profile_completion = int((completed_fields / total_fields) * 100)
+
     total_direct_received = db.session.query(func.sum(WalletTransaction.amount)) \
-                                .filter(
-        WalletTransaction.user_id == user.id,
-        WalletTransaction.transaction_type == 'credit',
-        WalletTransaction.description.like('Received direct payment%')
-    ).scalar() or 0
-    # Unread notifications count
-    unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
-    # Fetch agent's bookings (pending/accepted/etc.)
+        .filter(
+            WalletTransaction.user_id == user.id,
+            WalletTransaction.transaction_type == 'credit',
+            WalletTransaction.description.like('Received direct payment%')
+        ).scalar() or 0
+
+    # --- Notifications ---
+    notifications = Notification.query.filter_by(
+        user_id=current_user.id,
+        is_read=False
+    ).order_by(Notification.timestamp.desc()).all()
+    unread_count = len(notifications)
+
+    # --- Bookings pagination ---
     bookings_query = BookingRequest.query.filter(
         BookingRequest.agent_id == current_user.id,
         BookingRequest.status.in_(['pending', 'accepted', 'inspection_submitted', 'buyer_confirmed'])
     ).order_by(BookingRequest.date.desc())
     bookings = bookings_query.paginate(page=page, per_page=10)
-    # Fetch unread notifications for current user
-    notifications = Notification.query.filter_by(
-        user_id=current_user.id,
-        is_read=False
-    ).order_by(Notification.timestamp.desc()).all()
 
-    unread_count = len(notifications)  # or use .count() as before
-    # Fetch or create wallet for this agent
+    # --- Wallet ---
     wallet = get_or_create_wallet(user_id=user.id)
-    return render_template('agents/dashboard.html',
-                           user=user,
-                           total_bookings=total_bookings,
-                           completed_bookings=completed_bookings,
-                           pending_bookings=pending_bookings,
-                           recent_bookings=recent_bookings,
-                           total_earned=total_earned,
-                           pending_payment=pending_payment,
-                           escrows=escrows,
-                           total_escrow_released=total_escrow_released,
-                           total_escrow_pending=total_escrow_pending,
-                           average_rating=average_rating,
-                           recent_feedback=recent_feedback,
-                           notifications=notifications,
-                           profile_completion=profile_completion,
-                           total_direct_received=total_direct_received,
-                           bookings=bookings,
-                           unread_count=unread_count,
-                           wallet=wallet,
-                           )
+
+    # --- Return render ---
+    return render_template(
+        'agents/dashboard.html',
+        user=user,
+        total_bookings=total_bookings,
+        completed_bookings=completed_bookings,
+        pending_bookings=pending_bookings,
+        recent_bookings=recent_bookings,
+        total_earned=total_earned,
+        pending_payment=pending_payment,
+        escrows=recent_escrows,  # <-- recent 5 escrows for display
+        total_escrow_released=total_escrow_released,
+        total_escrow_pending=total_escrow_pending,
+        average_rating=average_rating,
+        recent_feedback=recent_feedback,
+        notifications=notifications,
+        profile_completion=profile_completion,
+        total_direct_received=total_direct_received,
+        bookings=bookings,
+        unread_count=unread_count,
+        wallet=wallet,
+        agents=user,
+        completion=current_user.profile_completion()
+    )
 
 
 @agents_bp.route('/mark-notifications-read', methods=['POST'])
@@ -144,10 +170,56 @@ def mark_notifications_read():
     flash("All notifications marked as read.", "success")
     return redirect(url_for('agents.agent_dashboard'))
 
-@agents_bp.route('/edit-profile')
+UPLOAD_FOLDER = "app/static/uploads/profile_photos"
+
+UPLOAD_FOLDER = os.path.join("app", "static", "uploads", "profile_photos")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure directory exists
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@agents_bp.route('/edit-profile', methods=["GET", "POST"])
 @login_required
 def edit_profile():
-    return render_template('agents/edit_profile.html', user=current_user)
+    if request.method == "POST":
+        try:
+            # Update user info
+            current_user.first_name = request.form.get("first_name") or current_user.first_name
+            current_user.last_name = request.form.get("last_name") or current_user.last_name
+            current_user.phone = request.form.get("phone") or current_user.phone
+            current_user.about = request.form.get("about") or current_user.about
+
+            # Handle profile photo
+            if "profile_photo" in request.files:
+                file = request.files["profile_photo"]
+                if file and file.filename.strip():
+                    if not allowed_file(file.filename):
+                        flash("❌ Invalid file type. Allowed: png, jpg, jpeg, gif.", "danger")
+                        return redirect(url_for("agents.edit_profile"))
+
+                    # Ensure upload folder exists
+                    upload_folder = os.path.join(current_app.root_path, "static/uploads/profile_photos")
+                    os.makedirs(upload_folder, exist_ok=True)
+
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(upload_folder, filename)
+                    file.save(file_path)
+
+                    # Save relative path in DB
+                    current_user.profile_photo = f"uploads/profile_photos/{filename}"
+
+            db.session.commit()
+            flash("✅ Profile updated successfully!", "success")
+            return redirect(url_for("agents.edit_profile"))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error updating profile: {str(e)}", "danger")
+            return redirect(url_for("agents.edit_profile"))
+
+    return render_template("agents/edit_profile.html", user=current_user)
+
 
 from sqlalchemy.orm import joinedload
 @agents_bp.route('/profile/<int:agent_id>')
@@ -548,43 +620,42 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * asin(sqrt(a))
     return R * c
 
-@agents_bp.route("/search-agents-live")
-@login_required
-def search_agents_live():
-    user_lat = request.args.get("latitude", type=float)
-    user_lon = request.args.get("longitude", type=float)
-    role = request.args.get("role", default="agent")
+@agents_bp.route('/search-live-agents', methods=['POST'])
+def search_live_agents():
+    data = request.get_json()
+    user_lat = data.get('latitude')
+    user_lon = data.get('longitude')
 
-    # Base query: agents in database
-    agents = User.query.filter_by(role=role).filter(
+    if user_lat is None or user_lon is None:
+        return jsonify([])
+
+
+    agents = User.query.filter_by(role='agent').filter(
         User.latitude.isnot(None),
         User.longitude.isnot(None)
     ).all()
 
     results = []
     for agent in agents:
-        dist = haversine(user_lat, user_lon, agent.latitude, agent.longitude) if user_lat and user_lon else None
-        online = agent.last_seen and (datetime.utcnow() - agent.last_seen) < timedelta(minutes=5)
+        dist = haversine(user_lat, user_lon, agent.latitude, agent.longitude)
+        kyc = AgentKYC.query.filter_by(user_id=agent.id).order_by(AgentKYC.created_at.desc()).first()
+        kyc_status = kyc.status if kyc else None
+
+
+
         results.append({
-            "id": agent.id,
-            "full_name": f"{agent.first_name} {agent.last_name}",
-            "phone": agent.phone,
-            "photo": agent.profile_photo,
-            "state": agent.state,
-            "city": agent.city,
-            "online": online,
-            "distance_km": round(dist, 2) if dist else None,
-            "avg_rating": round(db.session.query(func.avg(Review.rating)).filter_by(reviewee_id=agent.id).scalar() or 0, 1),
-            "review_count": db.session.query(Review).filter_by(reviewee_id=agent.id).count(),
-            "whatsapp_link": f"https://wa.me/{agent.phone}",
+            'id': agent.id,
+            'name': f"{agent.first_name} {agent.last_name}",
+            'state': agent.state,
+            'city': agent.city,
+            'distance_km': round(dist, 2),
+            'is_online': agent.is_online,
+            "kyc_status": kyc_status,  # ✅ include this
+
         })
 
-    # Sort by distance if coordinates provided
-    if user_lat and user_lon:
-        results.sort(key=lambda x: x['distance_km'])
-
+    results.sort(key=lambda x: x['distance_km'])
     return jsonify(results)
-
 
 
 from sqlalchemy.sql import func
@@ -596,6 +667,7 @@ def search_agents():
     product_id = request.args.get("product_id", type=int)
     role = request.args.get("role", default="agent")  # 'agent' or 'logistics'
 
+    # 🔹 Ensure product exists
     product = Product.query.get(product_id)
     if not product:
         flash("Product not found.", "danger")
@@ -604,14 +676,42 @@ def search_agents():
     state = product.state
     city = product.city
 
-    # Get all agents or logistics in that location
+    # 🔹 Get all agents/logistics in product location
     agents = User.query.filter_by(role=role, state=state, city=city).all()
+    agent_ids = [a.id for a in agents]
 
+    # 🔹 Fetch ratings in a grouped query
+    reviews_data = (
+        db.session.query(
+            Review.reviewee_id,
+            func.coalesce(func.avg(Review.rating), 0).label("avg_rating"),
+            func.count(Review.id).label("review_count")
+        )
+        .filter(Review.reviewee_id.in_(agent_ids))
+        .group_by(Review.reviewee_id)
+        .all()
+    )
+
+    # 🔹 Map reviews by agent_id for quick lookup
+    reviews_map = {
+        r.reviewee_id: {
+            "avg_rating": float(r.avg_rating),
+            "review_count": r.review_count
+        }
+        for r in reviews_data
+    }
+
+    # 🔹 Enrich agents with extra info
     enriched_agents = []
     for agent in agents:
-        avg_rating = db.session.query(func.avg(Review.rating)).filter_by(reviewee_id=agent.id).scalar() or 0
-        review_count = db.session.query(Review).filter_by(reviewee_id=agent.id).count()
+        review_info = reviews_map.get(agent.id, {"avg_rating": 0.0, "review_count": 0})
+
+        # Online status = active within last 5 minutes
         online = agent.last_seen and (datetime.utcnow() - agent.last_seen) < timedelta(minutes=5)
+
+        # KYC status (latest submission)
+        kyc = AgentKYC.query.filter_by(user_id=agent.id).order_by(AgentKYC.created_at.desc()).first()
+        kyc_status = kyc.status if kyc else None
 
         enriched_agents.append({
             "id": agent.id,
@@ -621,18 +721,23 @@ def search_agents():
             "state": agent.state,
             "city": agent.city,
             "online": online,
-            "avg_rating": round(avg_rating, 1),
-            "review_count": review_count,
-            "whatsapp_link": f"https://wa.me/{agent.phone}",
-            "specialization": getattr(agent, "specialization", ""),  # if you added this field
+            "avg_rating": round(review_info["avg_rating"], 1),
+            "review_count": review_info["review_count"],
+            "whatsapp_link": f"https://wa.me/{agent.phone}" if agent.phone else None,
+            "specialization": getattr(agent, "specialization", ""),
+            "kyc_status": kyc_status
         })
 
+    # 🔹 Render template with enriched agents
     return render_template(
         "search_agents.html",
         agents=enriched_agents,
         product=product,
-        user=current_user,role=role
+        user=current_user,
+        role=role
     )
+
+from sqlalchemy.orm import aliased
 
 @agents_bp.route('/book-agent', methods=['POST'])
 @login_required
@@ -706,7 +811,8 @@ def search_nearby_logistics():
                 'specialty': getattr(user, 'specialty', 'Logistics'),
                 'about': getattr(user, 'about', 'No info provided'),
                 'is_online': getattr(user, 'is_online', False),
-                'distance_km': distance
+                'distance_km': distance,
+
             })
 
     # Sort results by distance and return
@@ -759,3 +865,202 @@ def nearby_users():
             "role": user_obj.role
         })
     return jsonify(enriched)
+
+
+
+UPLOAD_FOLDER = os.path.join(os.getcwd(), "app", "static", "uploads")
+
+@agents_bp.before_app_request
+def setup_upload_folder():
+    current_app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+    os.makedirs(current_app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+# app/agents/routes.py
+# app/agents/routes.py
+@agents_bp.route('/upload-documents', methods=['GET', 'POST'])
+@login_required
+def upload_documents():
+    if request.method == "POST":
+        full_name = request.form.get("full_name")
+        address = request.form.get("address")
+        doc_type = request.form.get("doc_type")  # required
+        files = request.files.getlist("documents")  # optional multiple files
+
+        if not doc_type:
+            flash("You must select a document type", "danger")
+            return redirect(request.url)
+
+        saved_files = []
+        for file in files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
+                saved_files.append(filename)
+
+        flash("Documents uploaded successfully!", "success")
+        return redirect(url_for("agents.upload_documents"))
+
+    return render_template("upload_documents.html")
+
+@agents_bp.route('/delete-document/<int:index>', methods=['POST'])
+@login_required
+def delete_document(index):
+    documents = current_user.documents or []
+    if 0 <= index < len(documents):
+        try:
+            # Delete file from disk
+            filepath = documents.pop(index)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
+            current_user.documents = documents
+            db.session.commit()
+            flash("Document deleted successfully.", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash("Failed to delete document.", "danger")
+            print("Document deletion error:", e)
+    else:
+        flash("Invalid document.", "warning")
+    return redirect(url_for('agents.upload_documents'))
+
+
+@login_required
+@agents_bp.route('/kyc', methods=['GET', 'POST'])
+def kyc():
+    if request.method == 'POST':
+        full_name = request.form.get('full_name')
+        address = request.form.get('address')
+        document_type = request.form.get('document_type')
+        files = request.files.getlist('documents')
+
+        if not full_name or not address or not document_type:
+            flash('Please fill in all required fields.', 'danger')
+            return redirect(url_for('agents.kyc'))
+
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if not upload_folder:
+            flash('Upload folder is not configured.', 'danger')
+            return redirect(url_for('agents.kyc'))
+
+        document_paths = []
+        for file in files:
+            if file.filename:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(upload_folder, filename)
+                file.save(filepath)
+                # Save relative path to DB
+                document_paths.append(os.path.join('app', 'static', 'uploads', filename))
+
+        # Save KYC to DB
+        kyc = AgentKYC(
+            user_id=current_user.id,
+            full_name=full_name,
+            address=address,
+            document_type=document_type,
+            document_images=document_paths,
+            status='pending'
+        )
+        db.session.add(kyc)
+        db.session.commit()
+        flash('KYC submitted successfully! Pending admin approval.', 'success')
+        return redirect(url_for('agents.agent_dashboard'))
+
+    return render_template('agents/kyc.html')
+
+
+def serialize_user(user):
+    return {
+        "id": user.id,
+        "name": f"{user.first_name} {user.last_name}",
+        "city": user.city,
+        "state": user.state,
+        "phone": user.phone_display,
+        "distance_km": user.distance_km,
+        "is_online": user.is_online,
+        "avg_rating": user.avg_rating,
+        "review_count": user.review_count,
+        "kyc_status": user.kyc.status if user.kyc else "pending"  # <-- send KYC status
+    }
+
+
+from flask import request
+@agents_bp.route("/agent/<int:agent_id>/profile_modal")
+def agent_profile_modal(agent_id):
+    # Get the agent
+    agent = User.query.get_or_404(agent_id)
+
+    # Get reviews for this agent (reviewee_id = agent.id)
+    reviews = (
+        Review.query
+        .filter(Review.reviewee_id == agent.id)
+        .options(joinedload(Review.reviewer))
+        .all()
+    )
+
+    # Compute review stats
+    if reviews:
+        average_rating = round(sum(r.rating for r in reviews) / len(reviews), 1)
+        total_reviews = len(reviews)
+        positive_reviews = [r for r in reviews if r.rating >= 4]
+        negative_reviews = [r for r in reviews if r.rating <= 2]
+    else:
+        average_rating = 0
+        total_reviews = 0
+        positive_reviews = []
+        negative_reviews = []
+
+    return render_template(
+        "agent/profile_modal.html",
+        agent=agent,
+        reviews=reviews,
+        average_rating=average_rating,
+        total_reviews=total_reviews,
+        positive_reviews=positive_reviews,
+        negative_reviews=negative_reviews,
+    )
+
+from math import ceil
+from flask import request
+
+@agents_bp.route('/agent_profile_standalone/<int:agent_id>')
+@login_required
+def agent_profile_standalone(agent_id):
+
+        agent = User.query.filter_by(id=agent_id, role='agent').first()
+        if not agent:
+            abort(404, description="Agent not found")
+
+        booking = BookingRequest.query.filter_by(agent_id=agent_id, buyer_id=current_user.id).first()
+
+        # ✅ Get reviews where the booking is related to the agent
+        reviews = (
+            Review.query
+            .join(Review.booking)
+            .filter(BookingRequest.agent_id == agent_id)
+            .options(joinedload(Review.reviewer))
+            .all()
+        )
+
+        # Group reviews
+        positive_reviews = [r for r in reviews if r.rating >= 4]
+        negative_reviews = [r for r in reviews if r.rating <= 2]
+
+        # Calculate average
+        if reviews:
+            average_rating = round(sum(r.rating for r in reviews) / len(reviews), 1)
+            total_reviews = len(reviews)
+        else:
+            average_rating = 0
+            total_reviews = 0
+
+        return render_template(
+            'agents/agent_profile_modal.html',
+            agent=agent,
+            booking=booking,
+            positive_reviews=positive_reviews,
+            negative_reviews=negative_reviews,
+            average_rating=average_rating,
+            total_reviews=total_reviews,
+
+        )

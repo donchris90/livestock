@@ -113,7 +113,7 @@ class Order(db.Model):
     seller = db.relationship("User", back_populates="orders_received", foreign_keys=[seller_id])
     agent = db.relationship("User", back_populates="orders_as_agent", foreign_keys=[agent_id])
     product = db.relationship("Product", back_populates="orders")
-
+    reviews = db.relationship('Review', back_populates='order', cascade='all, delete-orphan')
 
 class Payment(db.Model):
     __tablename__ = 'payment'
@@ -473,9 +473,10 @@ class User(UserMixin, db.Model):
     account_number = db.Column(db.String(20))
     wallet_balance = db.Column(db.Float, default=0.0)
     profile_picture = db.Column(db.String, nullable=True)
+    documents = db.Column(db.ARRAY(db.String), default=[])
     availability_status = db.Column(db.Boolean, default=True)  # or default=False depending on your logic
     from sqlalchemy.dialects.postgresql import ARRAY
-
+    kyc = db.relationship("AgentKYC", back_populates="user", uselist=False)
 
     service_tags = db.Column(ARRAY(db.String), nullable=True)
     # Relationships
@@ -533,6 +534,14 @@ class User(UserMixin, db.Model):
         foreign_keys='Subscription.created_by'
     )
 
+    # In User model
+    received_reviews = db.relationship(
+        'Review',
+        foreign_keys='Review.reviewee_id',
+        back_populates='reviewee',
+        lazy='dynamic'
+    )
+
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
@@ -542,6 +551,32 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def profile_completion(self):
+        # Include all relevant fields for profile completion
+        fields = [
+            self.first_name,
+            self.last_name,
+            self.phone,
+            self.email,
+            self.state,
+            self.city,
+            self.street,
+            self.company_name,
+            self.about,
+            self.profile_photo
+        ]
+
+        # Count filled fields
+        filled = sum(1 for f in fields if f and str(f).strip() != "")
+        total = len(fields)
+
+        # Add KYC verification as a separate requirement
+        total += 1
+        if getattr(self, "kyc", None) and getattr(self.kyc, "status", None) == "approved":
+            filled += 1
+
+        return int((filled / total) * 100)
 
     @property
     def full_name(self):
@@ -580,7 +615,8 @@ class Product(db.Model):
     promotion_end_date = db.Column(db.DateTime, nullable=True)
     featured_expiry = db.Column(db.DateTime, nullable=True)
     top_expiry = db.Column(db.DateTime, nullable=True)
-
+    boosted_at = db.Column(db.DateTime, nullable=True)
+    last_shown = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     agent_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
@@ -652,6 +688,8 @@ class Review(db.Model):
     reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     reviewee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True)
+
 
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text)
@@ -659,9 +697,10 @@ class Review(db.Model):
 
     # Relationships
     booking = db.relationship('BookingRequest', back_populates='reviews')
-
+    reviewee = db.relationship('User', foreign_keys=[reviewee_id], back_populates='received_reviews')
+    order = db.relationship('Order', back_populates='reviews', foreign_keys=[order_id])
     reviewer = db.relationship('User', foreign_keys=[reviewer_id], backref='given_reviews')
-    reviewee = db.relationship('User', foreign_keys=[reviewee_id], backref='received_reviews')
+
 
     product = db.relationship('Product', backref='reviews')
 
@@ -1005,3 +1044,18 @@ class EscrowAudit(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class AgentKYC(db.Model):
+    __tablename__ = "agent_kyc"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    full_name = db.Column(db.String(120), nullable=False)
+    address = db.Column(db.String(255), nullable=False)
+    document_type = db.Column(db.String(50), nullable=False)
+    document_images = db.Column(db.ARRAY(db.String), nullable=True)  # store uploaded images
+    status = db.Column(db.String(20), default="pending")
+    # values: "pending", "approved", "rejected"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship("User", back_populates="kyc")

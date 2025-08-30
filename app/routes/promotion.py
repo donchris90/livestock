@@ -161,13 +161,13 @@ def verify_payment():
         product.promotion_type = payment.promo_type
         product.updated_at = datetime.utcnow()
 
-        if payment.promo_type == "feature":
+        if payment.promo_type == "featured":
             product.is_featured = True
             product.featured_expiry = datetime.utcnow() + timedelta(days=days)
 
-        elif payment.promo_type == "boost":
+        elif payment.promo_type == "boosted":
             product.is_boosted = True
-            product.boosted_expiry = datetime.utcnow() + timedelta(days=days)
+            product.boost_expiry = datetime.utcnow() + timedelta(days=days)
 
         elif payment.promo_type == "top":
             product.is_top = True
