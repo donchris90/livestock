@@ -1,102 +1,91 @@
 {% extends "logistics/base.html" %}
 {% block content %}
 <div class="container my-5">
-    <h3>Upload Documents</h3>
-    <form id="uploadForm" method="POST" enctype="multipart/form-data">
-        {{ form.hidden_tag() }}
-        <div id="dropArea" class="border border-dashed p-4 text-center rounded mb-3">
-            <p>Drag & drop files here or click to select</p>
-            <input type="file" id="fileInput" name="documents" multiple style="display:none;">
+    <h3>Submit KYC Documents</h3>
+    <form method="POST" enctype="multipart/form-data">
+        <!-- Full Name -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Full Name</label>
+            <input type="text" name="full_name" class="form-control" placeholder="Enter full name" required>
         </div>
-        <div id="preview" class="mb-3"></div>
-        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
-    </form>
 
-    {% if user.documents %}
-    <h5 class="mt-4">Uploaded Documents</h5>
-    <ul class="list-group">
-        {% for doc in user.documents %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('static', filename=doc.split('static/')[-1]) }}" target="_blank">
-                {% if doc.endswith('.pdf') %}
-                📄 {{ doc.split('/')[-1] }}
-                {% else %}
-                <img src="{{ url_for('static', filename=doc.split('static/')[-1]) }}" height="50">
-                {{ doc.split('/')[-1] }}
-                {% endif %}
-            </a>
-            <form method="POST" action="{{ url_for('agents.delete_document', index=loop.index0) }}">
-                <button class="btn btn-sm btn-danger" type="submit">Delete</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+        <!-- Address -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Address</label>
+            <input type="text" name="address" class="form-control" placeholder="Enter address" required>
+        </div>
+
+        <!-- Document Type -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Document Type</label>
+            <select name="document_type" class="form-select" required>
+                <option value="">Select Type</option>
+                <option value="NIN">NIN</option>
+                <option value="Driver License">Driver License</option>
+                <option value="Int'l Passport">Int'l Passport</option>
+            </select>
+        </div>
+
+        <!-- Upload Files -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Upload Documents</label>
+            <input type="file" name="documents" id="documents" class="form-control" multiple accept="image/*,.pdf">
+            <div class="form-text">You can upload multiple files (jpg, png, pdf).</div>
+        </div>
+
+        <!-- Preview Area -->
+        <div id="preview" class="d-flex flex-wrap gap-2 mb-3"></div>
+
+        <button type="submit" class="btn btn-primary w-100">Submit KYC</button>
+    </form>
 </div>
 
 <script>
-const dropArea = document.getElementById("dropArea");
-const fileInput = document.getElementById("fileInput");
-const preview = document.getElementById("preview");
+const input = document.getElementById('documents');
+const preview = document.getElementById('preview');
 
-// Highlight drop area
-['dragenter', 'dragover'].forEach(eventName => {
-  dropArea.addEventListener(eventName, e => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropArea.classList.add('bg-light');
-  }, false);
+input.addEventListener('change', () => {
+    preview.innerHTML = "";
+    Array.from(input.files).forEach((file, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.style.width = '100px';
+                img.style.height = '100px';
+                img.style.objectFit = 'cover';
+                img.classList.add('img-thumbnail', 'me-2');
+                wrapper.appendChild(img);
+            } else {
+                wrapper.textContent = '📄 ' + file.name;
+            }
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = '✖';
+            btn.classList.add('btn', 'btn-sm', 'btn-danger');
+            btn.style.position = 'absolute';
+            btn.style.top = '0';
+            btn.style.right = '0';
+            btn.onclick = () => {
+                removeFile(index);
+                wrapper.remove();
+            };
+            wrapper.appendChild(btn);
+        };
+        reader.readAsDataURL(file);
+        preview.appendChild(wrapper);
+    });
 });
 
-['dragleave', 'drop'].forEach(eventName => {
-  dropArea.addEventListener(eventName, e => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropArea.classList.remove('bg-light');
-  }, false);
-});
-
-// Handle drop
-dropArea.addEventListener('drop', e => {
-  const files = e.dataTransfer.files;
-  handleFiles(files);
-});
-
-// Click to select files
-dropArea.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', e => handleFiles(fileInput.files));
-
-// Preview function
-function handleFiles(files) {
-  preview.innerHTML = '';
-  for (const file of files) {
-    const div = document.createElement('div');
-    div.classList.add('mb-2');
-
-    if (file.type.startsWith('image/')) {
-      const img = document.createElement('img');
-      img.src = URL.createObjectURL(file);
-      img.style.height = '80px';
-      img.classList.add('me-2');
-      div.appendChild(img);
-    } else if (file.type === 'application/pdf') {
-      div.textContent = "📄 " + file.name;
-    } else {
-      div.textContent = file.name;
-    }
-    preview.appendChild(div);
-  }
+function removeFile(index) {
+    const dt = new DataTransfer();
+    Array.from(input.files).forEach((file, i) => { if (i !== index) dt.items.add(file); });
+    input.files = dt.files;
 }
 </script>
-
-<style>
-#dropArea {
-    cursor: pointer;
-    border: 2px dashed #6c757d;
-    transition: background-color 0.2s;
-}
-#dropArea.bg-light {
-    background-color: #e9ecef;
-}
-</style>
 {% endblock %}

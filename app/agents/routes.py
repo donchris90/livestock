@@ -812,6 +812,7 @@ def search_nearby_logistics():
                 'about': getattr(user, 'about', 'No info provided'),
                 'is_online': getattr(user, 'is_online', False),
                 'distance_km': distance,
+                'kyc': {'status': user.kyc.status} if user.kyc else None
 
             })
 

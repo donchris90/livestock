@@ -1,42 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ product.title }} | Livestock Marketplace</title>
-
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    body {
-      background-color: #f8f9fa;
-    }
-    .product-img, .carousel-inner img {
-      width: 100%;
-      max-height: 450px;
-      object-fit: cover;
-      border-radius: 0.75rem;
-    }
-    .card-img-top {
-      height: 200px;
-      object-fit: cover;
-    }
-    .price {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #198754;
-    }
-    .badge-verified {
-      background-color: #198754;
-      font-size: 0.75rem;
-      color: white;
-      padding: 0.25em 0.4em;
-      border-radius: 0.25rem;
-    }
-    .product-card:hover {
-      transform: scale(1.03);
-      transition: transform 0.2s ease-in-out;
-    }
+    body { background-color: #f8f9fa; }
+    .product-img, .carousel-inner img { width: 100%; max-height: 450px; object-fit: cover; border-radius: 0.75rem; }
+    .card-img-top { height: 200px; object-fit: cover; }
+    .price { font-size: 1.5rem; font-weight: bold; color: #198754; }
+    .badge-verified { background-color: #198754; font-size: 0.75rem; color: white; padding: 0.25em 0.4em; border-radius: 0.25rem; }
+    .product-card:hover { transform: scale(1.03); transition: transform 0.2s ease-in-out; }
+    .review-stars { font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -49,10 +26,9 @@
       aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
-
     <div class="collapse navbar-collapse" id="navbarNav">
       <form class="d-flex ms-3 my-2 my-lg-0" method="GET" action="{{ url_for('main.home') }}">
-        <input class="form-control me-2" type="search" name="q" placeholder="Search products..." value="{{ request.args.get('q', '') }}">
+        <input class="form-control me-2" type="search" name="q" placeholder="Search products..." value="{{ request.args.get('q','') }}">
         <button class="btn btn-outline-success" type="submit">Search</button>
       </form>
       <ul class="navbar-nav ms-auto">
@@ -68,155 +44,149 @@
   </div>
 </nav>
 
-<!-- Product Details -->
+<!-- Main Content -->
 <div class="container mt-4">
   <div class="row">
-    <!-- Left: Product Images and Details -->
+    <!-- Left Column: Product Details + Reviews -->
     <div class="col-lg-8">
-      <h2 class="mb-3">{{ product.title }}</h2>
 
+      <!-- Product Title -->
+      <h2>{{ product.title }}</h2>
+
+      <!-- Product Carousel or Single Image -->
       {% if product.photos and product.photos|length > 1 %}
-        <div id="carousel" class="carousel slide mb-3" data-bs-ride="carousel">
-          <div class="carousel-inner">
-            {% for photo in product.photos %}
-              <div class="carousel-item {% if loop.first %}active{% endif %}">
-                <img src="{{ url_for('static', filename=photo.replace('static/', '')) }}" class="d-block w-100 product-img" alt="Product Image" />
-              </div>
-            {% endfor %}
+      <div id="carousel" class="carousel slide mb-3" data-bs-ride="carousel">
+        <div class="carousel-inner">
+          {% for photo in product.photos %}
+          <div class="carousel-item {% if loop.first %}active{% endif %}">
+            <img src="{{ url_for('static', filename=photo.replace('static/','')) }}" class="d-block w-100 product-img" alt="Product Image">
           </div>
-          <button class="carousel-control-prev" type="button" data-bs-target="#carousel" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon"></span>
-          </button>
-          <button class="carousel-control-next" type="button" data-bs-target="#carousel" data-bs-slide="next">
-            <span class="carousel-control-next-icon"></span>
-          </button>
+          {% endfor %}
         </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carousel" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carousel" data-bs-slide="next">
+          <span class="carousel-control-next-icon"></span>
+        </button>
+      </div>
       {% else %}
-        <img src="{{ url_for('static', filename=product.photos[0].replace('static/', '')) if product.photos else url_for('static', filename='default.jpg') }}"
-          class="img-fluid product-img mb-3" alt="Product Image" />
+      <img src="{{ url_for('static', filename=product.photos[0].replace('static/','')) if product.photos else url_for('static','default.jpg') }}"
+           class="img-fluid product-img mb-3" alt="Product Image">
       {% endif %}
 
       <!-- Action Buttons -->
       <div class="d-flex flex-column flex-sm-row gap-2 mb-4">
-        <a href="{{ url_for('agents.search_agents', product_id=product.id) }}" class="btn btn-primary mt-3">
-    Find Nearby Agents
-</a>
- <a href="{{ url_for('escrow.escrow_offer', product_id=product.id) }}" class="btn btn-primary flex-fill">Start Escrow</a>
+        <a href="{{ url_for('agents.search_agents', product_id=product.id) }}" class="btn btn-primary flex-fill">Find Nearby Agents</a>
+        <a href="{{ url_for('escrow.escrow_offer', product_id=product.id) }}" class="btn btn-primary flex-fill">Start Escrow</a>
         {% if current_user.is_authenticated and current_user.id != product.user_id %}
           <a href="{{ url_for('escrow.create_order', product_id=product.id) }}" class="btn btn-success flex-fill">Create Order</a>
         {% endif %}
       </div>
 
-      <p class="price">₦{{ "{:,.2f}".format(product.price) }}</p>
-      <p><strong>Category:</strong> {{ product.category }}</p>
-      <p><strong>Type:</strong> {{ product.type }}</p>
-      <p><strong>Quantity:</strong> {{ product.quantity }}</p>
-      <p><strong>Location:</strong>
-        {% if product.street %}{{ product.street }}, {% endif %}
-        {% if product.city %}{{ product.city }}, {% endif %}
-        {% if product.state %}{{ product.state }}{% endif %}
-      </p>
-      <p><strong>Description:</strong><br />{{ product.description }}</p>
-      <p><strong>Negotiation:</strong> {{ product.open_to_negotiation }}</p>
-      <p><strong>Views:</strong> {{ product.views or 0 }}</p>
+      <!-- Product Info -->
+      <div class="bg-white p-3 rounded shadow-sm mb-4">
+        <p class="price">₦{{ "{:,.2f}".format(product.price) }}</p>
+        <p><strong>Category:</strong> {{ product.category }}</p>
+        <p><strong>Type:</strong> {{ product.type }}</p>
+        <p><strong>Quantity:</strong> {{ product.quantity }}</p>
+        <p><strong>Location:</strong>
+          {% if product.street %}{{ product.street }}, {% endif %}
+          {% if product.city %}{{ product.city }}, {% endif %}
+          {% if product.state %}{{ product.state }}{% endif %}
+        </p>
+        <p><strong>Description:</strong><br>{{ product.description }}</p>
+        <p><strong>Negotiation:</strong> {{ product.open_to_negotiation }}</p>
+        <p><strong>Views:</strong> {{ product.views or 0 }}</p>
+      </div>
+
+      <!-- Reviews Section -->
+      <div class="bg-white p-3 rounded shadow-sm mb-4">
+        {% if current_user.is_authenticated and current_user.role in ['buyer','seller'] and nearby_agents %}
+        <!-- Average Rating -->
+        <div class="mb-3">
+          <strong>Average Rating:</strong>
+          <span class="text-warning review-stars">
+            {% for i in range(1,6) %}
+              {% if i <= avg_rating_rounded %}⭐{% else %}☆{% endif %}
+            {% endfor %}
+          </span>
+          <span class="ms-2">{{ avg_rating_rounded }}/5 ({{ total_reviews }} review{% if total_reviews != 1 %}s{% endif %})</span>
+        </div>
+        {% endif %}
+
+        <h5>Customer Reviews</h5>
+        {% if reviews %}
+          {% for review in reviews %}
+          <div class="border p-2 mb-2 rounded">
+            <strong>{{ review.reviewer.first_name }}</strong>
+            <span class="text-warning review-stars">{% for i in range(review.rating) %}⭐{% endfor %}{% for i in range(5-review.rating) %}☆{% endfor %}</span>
+            <p>{{ review.comment }}</p>
+            <small class="text-muted">{{ review.created_at.strftime('%Y-%m-%d') if review.created_at else '' }}</small>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted">No reviews yet.</p>
+        {% endif %}
+      </div>
     </div>
 
-    <!-- Right: Seller Info -->
+    <!-- Right Column: Seller Info + Safety Tips -->
     <div class="col-lg-4">
-      <div class="bg-white p-3 rounded shadow-sm mb-4">
-        <h5>Seller Info</h5>
-        <p>
-          <strong>{{ seller.company_name or (seller.first_name + ' ' + seller.last_name) }}</strong>
-          {% if seller.is_verified %}
-            <span class="badge badge-verified">Verified</span>
-          {% endif %}
-        </p>
-        <p><strong>Phone:</strong> {{ product.phone_display or seller.phone }}</p>
-        <p><strong>Last seen:</strong> {{ seller.last_seen.strftime('%b %d, %Y %I:%M %p') if seller.last_seen else 'N/A' }}</p>
 
-        <a href="https://wa.me/{{ product.phone_display or seller.phone }}" class="btn btn-success w-100 mb-2" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
+      <!-- Seller Card -->
+      <div class="bg-white p-4 rounded shadow-sm text-center mb-4">
+        <img src="{% if seller.profile_photo %}{{ url_for('static', filename=seller.profile_photo.split('static/')[-1].replace('\\','/')) }}{% else %}{{ url_for('static','default.jpg') }}{% endif %}"
+             class="rounded-circle border border-secondary mb-3" width="80" height="80" alt="Seller Avatar">
+        <h5>{{ seller.first_name }} {{ seller.last_name }}</h5>
+        {% if seller.company_name %}<p class="text-muted mb-2"><strong>{{ seller.company_name }}</strong></p>{% endif %}
+        {% if seller.is_verified %}<span class="badge bg-success mb-3">✔ Verified</span>{% endif %}
+        <p class="mb-1"><strong>Phone:</strong> {{ product.phone_display or seller.phone }}</p>
+        <p class="mb-3" style="font-size:12px;"><strong>Last seen:</strong> {{ seller.last_seen.strftime('%b %d, %Y %I:%M %p') if seller.last_seen else 'N/A' }}</p>
+        <a href="https://wa.me/{{ product.phone_display or seller.phone }}" class="btn btn-success w-100 mb-2" target="_blank">💬 WhatsApp</a>
         <a href="{{ url_for('chat.chat_with_user', receiver_id=seller.id) }}" class="btn btn-outline-primary w-100 mb-2">💬 Chat Seller</a>
-
         <form action="{{ url_for('seller_dashboard.report_product', product_id=product.id) }}" method="POST" class="mb-2">
-          <button class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('Report this product?')">🚩 Report</button>
+          <button class="btn btn-outline-danger w-100" onclick="return confirm('Report this product?')">🚩 Report</button>
         </form>
         <form action="{{ url_for('seller_dashboard.add_to_wishlist', product_id=product.id) }}" method="POST">
-          <button class="btn btn-outline-danger btn-sm w-100">❤️ Save to Wishlist</button>
+          <button class="btn btn-outline-danger w-100">❤️ Save to Wishlist</button>
         </form>
       </div>
 
-      {% if current_user.is_authenticated and current_user.role in ['buyer', 'seller'] and nearby_agents %}
+      <!-- Safety Tips -->
       <div class="bg-white p-3 rounded shadow-sm mb-4">
-
-<div class="mt-3">
-  <strong>Average Rating:</strong>
-  <span class="text-warning">
-    {% for i in range(1, 6) %}
-      {% if i <= avg_rating_rounded %}
-        ⭐
-      {% elif i - avg_rating_rounded < 1 %}
-        ⭐
-      {% else %}
-        ☆
-      {% endif %}
-    {% endfor %}
-  </span>
-  <span class="ms-2">
-    {{ avg_rating_rounded }}/5 ({{ total_reviews }} review{% if total_reviews != 1 %}s{% endif %})
-  </span>
-</div>
-
-
-
-<div class="mt-4">
-
-  <h5>Customer Reviews</h5>
-  {% if reviews %}
-    {% for review in reviews %}
-      <div class="border p-2 mb-2 rounded">
-          <strong>{{ review.reviewer.first_name }}</strong>
-          <span class="text-warning">
-            {% for i in range(review.rating) %}⭐{% endfor %}
-          </span>
-          <p>{{ review.comment }}</p>
-          <small class="text-muted">
-            {{ review.created_at.strftime('%Y-%m-%d') if review.created_at else '' }}
-          </small>
+        <h6>Safety Tips</h6>
+        <p style="font-size:13px;">💡 <strong>Meet Safely:</strong> Meet sellers in public places or hire an agent to inspect the product.</p>
+        <p style="font-size:13px;">💡 <strong>Secure Payments:</strong> Use escrow for agreed payments; avoid paying upfront without confirmation.</p>
+        <p style="font-size:13px;">💡 <strong>Inspect Goods:</strong> Check product condition before paying.</p>
+        <p style="font-size:13px;">💡 <strong>Review Carefully:</strong> Only pay when satisfied and leave honest feedback.</p>
+        <p style="font-size:13px;">💡 <strong>Use Logistics:</strong> Use trusted delivery services for shipping.</p>
       </div>
-    {% endfor %}
-  {% else %}
-    <p>No reviews yet.</p>
-  {% endif %}
-</div>
 
-      </div>
-      {% endif %}
     </div>
   </div>
 
-
   <!-- Similar Products -->
-  <hr class="my-5" />
+  <hr class="my-5">
   <h4>Similar Products</h4>
   <div class="row">
     {% for similar in similar_products %}
-      <div class="col-6 col-md-3 mb-4">
-        <div class="card product-card h-100 shadow-sm">
-          <img src="{{ url_for('static', filename=similar.photos[0].replace('static/', '')) if similar.photos else url_for('static', filename='default.jpg') }}"
-            class="card-img-top" alt="{{ similar.title }}" />
-          <div class="card-body d-flex flex-column">
-            <h6 class="card-title">{{ similar.title }}</h6>
-            <p class="price">₦{{ "{:,.2f}".format(similar.price) }}</p>
-            <a href="{{ url_for('seller_dashboard.product_detail', product_id=similar.id) }}" class="btn btn-sm btn-outline-primary mt-auto">View</a>
-          </div>
+    <div class="col-6 col-md-3 mb-4">
+      <div class="card product-card h-100 shadow-sm">
+        <img src="{{ url_for('static', filename=similar.photos[0].replace('static/','')) if similar.photos else url_for('static','default.jpg') }}"
+             class="card-img-top" alt="{{ similar.title }}">
+        <div class="card-body d-flex flex-column">
+          <h6 class="card-title">{{ similar.title }}</h6>
+          <p class="price">₦{{ "{:,.2f}".format(similar.price) }}</p>
+          <a href="{{ url_for('seller_dashboard.product_detail', product_id=similar.id) }}" class="btn btn-sm btn-outline-primary mt-auto">View</a>
         </div>
       </div>
+    </div>
     {% else %}
       <p class="text-muted">No similar products found.</p>
     {% endfor %}
   </div>
 </div>
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

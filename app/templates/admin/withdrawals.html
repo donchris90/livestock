@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<h3>Pending Withdrawals</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>User</th>
+            <th>Amount (₦)</th>
+            <th>Bank</th>
+            <th>Requested At</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for w in withdrawals %}
+        <tr>
+            <td>{{ w.user.first_name }} {{ w.user.last_name }}</td>
+            <td>{{ w.amount | round(2) }}</td>
+           <td>
+  {% if w.bank %}
+    <strong>{{ w.bank.bank_name }}</strong><br>
+    Acc No: {{ w.bank.account_number }}<br>
+    Acc Name: {{ w.bank.account_name }}
+  {% else %}
+    -
+  {% endif %}
+</td>
+
+            <td>
+  {% if w.created_at %}
+    {{ w.created_at.strftime('%d %b %Y %H:%M') }}
+  {% else %}
+    -
+  {% endif %}
+</td>
+
+            <td>
+                {% if w.status == 'pending' %}
+                    <span class="badge bg-warning">Pending</span>
+                {% elif w.status == 'approved' %}
+                    <span class="badge bg-success">Approved</span>
+                {% else %}
+                    <span class="badge bg-danger">Rejected</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if w.status == 'pending' %}
+                  <a href="{{ url_for('admin.approve_withdrawal', withdrawal_id=w.id) }}" class="btn btn-sm btn-success">Approve</a>
+
+                   <a href="{{ url_for('admin.reject_withdrawal', withdrawal_id=w.id) }}" class="btn btn-sm btn-danger">Reject</a>
+
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

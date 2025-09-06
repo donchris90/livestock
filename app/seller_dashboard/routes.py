@@ -1,7 +1,7 @@
 import os
 import uuid
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash,session, jsonify, current_app
+from flask import Blueprint, render_template, request,Response, redirect, url_for, flash,session, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app.notifications.events import notify_agent_inspection_marked_complete
 from app.utils.subscription_utils import get_upload_limit  # ✅ Make sure this exists
@@ -12,6 +12,7 @@ from app.utils.payout_utils import get_or_create_wallet,to_decimal
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from app.utils.email import send_email  # adjust path based on where send_email is defined
 from datetime import datetime, timedelta
+from app.utils.settings_utils import save_file
 from sqlalchemy.exc import SQLAlchemyError
 from app.routes.utils import generate_reference
 from decimal import Decimal
@@ -45,7 +46,7 @@ from sqlalchemy.sql import func
 from flask_login import current_user
 from app.models import BookingRequest, Notification
 from app.extensions import db
-from app.models import BookingRequest,Wallet,Wishlist,ServiceEscrow,FundTransfer,ProductReview,AdminRevenue,Order,WalletTransaction, InspectionFeedback,SubscriptionPlan,PayoutTransaction
+from app.models import BookingRequest,Wallet,Wishlist,Inventory,Withdrawal,VerificationDocument,Transaction,FundTransfer,ProductReview,AdminRevenue,Order,WalletTransaction, InspectionFeedback,SubscriptionPlan,PayoutTransaction
 from app.forms import FeedbackForm,EscrowPaymentForm,PayoutForm,BankDetailsForm,WithdrawalForm,CreateOrderForm
 from app.utils.paystack import (create_transfer_recipient,verify_account_number,
                                 get_banks_from_paystack,create_recipient_code,resolve_account_name,get_banks_from_api)
@@ -71,6 +72,7 @@ from flask import render_template
 from flask_login import login_required
 
 from sqlalchemy import func, and_
+from datetime import date, datetime
 
 from flask import render_template
 from flask_login import login_required, current_user
@@ -95,10 +97,13 @@ def to_decimal(value):
         return value.quantize(Decimal("0.01"), rounding=ROUND_DOWN)
     return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
 
+from datetime import datetime, timedelta
+
 @seller_dashboard_bp.route('/my-dashboard')
 @login_required
 def my_dashboard():
     user = current_user
+    now = datetime.utcnow()
 
     # --- Wallet & Escrow ---
     wallet = Wallet.query.filter_by(user_id=user.id).first()
@@ -144,16 +149,15 @@ def my_dashboard():
         (Order.buyer_id == user.id) | (Order.seller_id == user.id)
     ).count()
     pending_orders = Order.query.filter(
-        ((Order.buyer_id == user.id) | (Order.seller_id == user.id)) &
-        (Order.status == 'pending')
+        ((Order.buyer_id == user.id) | (Order.seller_id == user.id)) & (Order.status == 'pending')
     ).count()
     completed_orders = Order.query.filter(
-        ((Order.buyer_id == user.id) | (Order.seller_id == user.id)) &
-        (Order.status == 'completed')
+        ((Order.buyer_id == user.id) | (Order.seller_id == user.id)) & (Order.status == 'completed')
     ).count()
     sales_progress = round((completed_orders / total_orders * 100) if total_orders else 0, 2)
     released_percent = round(
-        float(released_amount / (locked_escrow_total + released_amount) * 100) if (locked_escrow_total + released_amount) > 0 else 0, 2
+        float(released_amount / (locked_escrow_total + released_amount) * 100)
+        if (locked_escrow_total + released_amount) > 0 else 0, 2
     )
 
     # --- Recipients for Transfer ---
@@ -190,8 +194,33 @@ def my_dashboard():
     total_pending = sum(to_decimal(e.total_amount) - to_decimal(e.partial_release_amount) for e in escrows)
     progress_percent = float(total_released / (total_released + total_pending) * 100) if (total_released + total_pending) > 0 else 0
 
+    # --- Expiring / Expired Promotions ---
+    expiring_products = Product.query.filter(
+        Product.user_id == user.id,
+        Product.is_deleted == False,
+        or_(
+            (Product.is_featured == True) & (Product.featured_expiry != None) & (Product.featured_expiry <= now + timedelta(days=3)),
+            (Product.is_boosted == True) & (Product.boost_expiry != None) & (Product.boost_expiry <= now + timedelta(days=3)),
+            (Product.is_top == True) & (Product.top_expiry != None) & (Product.top_expiry <= now + timedelta(days=3)),
+        )
+    ).all()
+    # Get pending withdrawals for the logged-in user
+    pending_withdrawals = Withdrawal.query.filter_by(
+        user_id=current_user.id, status="pending"
+    ).order_by(Withdrawal.created_at.desc()).all()
+
+    wallet = Wallet.query.filter_by(user_id=current_user.id).first()
+
+    # If user has no wallet yet
+    if not wallet:
+        wallet = Wallet(user_id=current_user.id, balance=0.0, pending_balance=0.0)
+        db.session.add(wallet)
+        db.session.commit()
+
     return render_template(
         'dashboard.html',
+        pending_withdrawals=pending_withdrawals,
+        wallet=wallet,
         user=user,
         service_escrows=service_escrows,
         escrows=escrows,
@@ -216,6 +245,9 @@ def my_dashboard():
         products=products,
         top_products=top_products,
 
+        # ✅ for promotions
+        expiring_products=expiring_products,
+        now=now,
         timedelta=timedelta
     )
 
@@ -1984,58 +2016,73 @@ def wallet_history():
     return render_template("wallet/history.html", transactions=transactions)
 
 
+# seller_dashboard/routes.py
+
+from decimal import Decimal
+
 @seller_dashboard_bp.route("/withdraw", methods=["GET", "POST"])
 @login_required
 def withdraw():
-    # Get or create wallet for current user
+    # ✅ Block unverified users
+    if not current_user.is_verified:
+        flash("You must complete KYC verification before requesting a withdrawal.", "danger")
+        return redirect(url_for("seller_dashboard.my_dashboard"))
+
+    # ✅ Get or create wallet
     wallet = Wallet.query.filter_by(user_id=current_user.id).first()
     if not wallet:
-        wallet = Wallet(user_id=current_user.id, balance=0.0)
+        wallet = Wallet(user_id=current_user.id, balance=Decimal("0.00"), pending_balance=Decimal("0.00"))
         db.session.add(wallet)
         db.session.commit()
 
     # Withdrawal form
     form = WithdrawalForm()
 
-    # Get saved bank accounts
+    # ✅ Load saved bank accounts
     bank_accounts = BankDetails.query.filter_by(user_id=current_user.id).all()
     form.bank_account.choices = [(b.id, f"{b.bank_name} - {b.account_number}") for b in bank_accounts]
 
     if request.method == "POST" and form.validate_on_submit():
         selected_bank = BankDetails.query.get(form.bank_account.data)
-        amount = form.amount.data
+
+        # ✅ Ensure Decimal
+        amount = Decimal(str(form.amount.data))
 
         if not selected_bank:
             flash("Selected bank not found.", "danger")
             return redirect(url_for("seller_dashboard.withdraw"))
 
-        if amount > wallet.balance:
+        if amount > (wallet.balance or Decimal("0.00")):
             flash("Insufficient balance.", "danger")
             return redirect(url_for("seller_dashboard.withdraw"))
 
-        # Use your existing payout utility
-        transfer_result = initiate_paystack_transfer(
-            bank_code=selected_bank.bank_code,
-            account_number=selected_bank.account_number,
-            amount=int(amount * 100),  # Paystack expects kobo
-            name=selected_bank.account_name
+        # ✅ Move money from available → pending
+        wallet.balance = (wallet.balance or Decimal("0.00")) - amount
+        wallet.pending_balance = (wallet.pending_balance or Decimal("0.00")) + amount
+
+        # ✅ Log withdrawal request
+        withdrawal = Withdrawal(
+            user_id=current_user.id,
+            bank_id=selected_bank.id,
+            amount=amount,
+            status="pending"  # Admin must approve
         )
 
-        if transfer_result.get("status"):
-            wallet.balance -= amount
-            db.session.commit()
-            flash(f"Withdrawal of ₦{amount:,.2f} initiated successfully.", "success")
-            return redirect(url_for("seller_dashboard.withdraw"))
-        else:
-            flash("Withdrawal failed: " + transfer_result.get("message", "Unknown error"), "danger")
+        db.session.add(withdrawal)
+        db.session.add(wallet)  # ensure wallet updates are tracked
+        db.session.commit()
+        db.session.refresh(wallet)  # reload wallet with updated values
 
+        flash(f"Withdrawal of ₦{amount:,.2f} submitted. Awaiting admin approval.", "success")
+        return redirect(url_for("seller_dashboard.withdraw"))
+
+    # ✅ Show form and balances
     return render_template(
         "wallet/withdraw.html",
         form=form,
         wallet=wallet,
         bank_accounts=bank_accounts
     )
-
 
 
 @seller_dashboard_bp.route("/products")
@@ -2720,13 +2767,14 @@ def release_escrow(escrow_id):
         # Convert amounts to Decimal
         agent_amount = Decimal(escrow.base_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         admin_amount = Decimal(escrow.escrow_fee or 0).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_amount = agent_amount + admin_amount
 
         # Credit agent wallet
         agent_wallet = Wallet.query.filter_by(user_id=escrow.provider_id).first()
         if not agent_wallet:
             agent_wallet = Wallet(user_id=escrow.provider_id, balance=Decimal("0.00"))
             db.session.add(agent_wallet)
-        agent_wallet.balance += agent_amount  # Decimal + Decimal
+        agent_wallet.balance += agent_amount
 
         # Credit admin wallet (user_id=7)
         admin_wallet = Wallet.query.filter_by(user_id=7).first()
@@ -2753,8 +2801,8 @@ def release_escrow(escrow_id):
             reference=str(uuid.uuid4())
         ))
 
-        # Update escrow
-        escrow.partial_release_amount = agent_amount
+        # ✅ Update escrow completely released
+        escrow.partial_release_amount = total_amount       # mark total released
         escrow.amount_to_seller = agent_amount
         escrow.admin_fee = admin_amount
         escrow.is_released = True
@@ -2769,8 +2817,6 @@ def release_escrow(escrow_id):
         db.session.rollback()
         flash(f"An unexpected error occurred: {str(e)}", "danger")
         return redirect(url_for('seller_dashboard.my_dashboard'))
-
-
 
 
 @seller_dashboard_bp.route('/pay_agent/<int:provider_id>', methods=['POST'])
@@ -3112,3 +3158,417 @@ def get_product_rating(product_id):
     ).filter(Review.product_id == product_id).first()
 
     return result.total_reviews or 0, round(result.average_rating or 0, 1)
+
+
+from flask import request, render_template
+from math import ceil
+
+
+@seller_dashboard_bp.route("/quickbook")
+@login_required
+def quickbook():
+    # Inventory query
+    inventory_query = Inventory.query.filter_by(user_id=current_user.id)
+    inv_category = request.args.get('inventory_category')
+    inv_status = request.args.get('status')
+    inv_search = request.args.get('search')
+
+    if inv_category:
+        inventory_query = inventory_query.filter_by(category=inv_category)
+    if inv_status:
+        if inv_status == 'in_stock':
+            inventory_query = inventory_query.filter(Inventory.quantity > 0)
+        elif inv_status == 'out_of_stock':
+            inventory_query = inventory_query.filter(Inventory.quantity <= 0)
+    if inv_search:
+        inventory_query = inventory_query.filter(Inventory.name.ilike(f"%{inv_search}%"))
+
+    # Pagination for inventory
+    inv_page = request.args.get('inv_page', 1, type=int)
+    per_page = 10
+    inventory_paginated = inventory_query.order_by(Inventory.id.desc()).paginate(page=inv_page, per_page=per_page)
+
+    # Transactions query
+    transaction_query = Transaction.query.filter_by(user_id=current_user.id)
+    trans_type = request.args.get('transaction_type')
+    trans_category = request.args.get('transaction_category')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    if trans_type:
+        transaction_query = transaction_query.filter_by(type=trans_type)
+    if trans_category:
+        transaction_query = transaction_query.filter_by(category=trans_category)
+    if start_date:
+        transaction_query = transaction_query.filter(Transaction.date >= start_date)
+    if end_date:
+        transaction_query = transaction_query.filter(Transaction.date <= end_date)
+
+    # Pagination for transactions
+    trans_page = request.args.get('trans_page', 1, type=int)
+    transactions_paginated = transaction_query.order_by(Transaction.date.desc()).paginate(page=trans_page, per_page=10)
+
+    # Summary stats
+    total_items = Inventory.query.filter_by(user_id=current_user.id).count()
+    total_in_stock = Inventory.query.filter(Inventory.user_id == current_user.id, Inventory.quantity > 0).count()
+    total_out_of_stock = Inventory.query.filter(Inventory.user_id == current_user.id, Inventory.quantity <= 0).count()
+
+    total_income = db.session.query(db.func.sum(Transaction.amount)).filter_by(user_id=current_user.id,
+                                                                               type="Income").scalar() or 0
+    total_expense = db.session.query(db.func.sum(Transaction.amount)).filter_by(user_id=current_user.id,
+                                                                                type="Expense").scalar() or 0
+    net_profit = total_income - total_expense
+
+    categories = [c[0] for c in db.session.query(Inventory.category).distinct()]  # unique categories
+
+    return render_template("quickbook.html",
+                           inventory=inventory_paginated.items,
+                           inventory_paginated=inventory_paginated,
+                           transactions=transactions_paginated.items,
+                           transactions_paginated=transactions_paginated,
+                           total_items=total_items,
+                           total_in_stock=total_in_stock,
+                           total_out_of_stock=total_out_of_stock,
+                           total_income=total_income,
+                           total_expense=total_expense,
+                           net_profit=net_profit,
+                           categories=categories)
+
+
+from flask import request, render_template
+from math import ceil
+
+
+@seller_dashboard_bp.route("/transactions")
+@login_required
+def transactions():
+    # Inventory query
+    inventory_query = Inventory.query.filter_by(user_id=current_user.id)
+    inv_category = request.args.get('inventory_category')
+    inv_status = request.args.get('status')
+    inv_search = request.args.get('search')
+
+    if inv_category:
+        inventory_query = inventory_query.filter_by(category=inv_category)
+    if inv_status:
+        if inv_status == 'in_stock':
+            inventory_query = inventory_query.filter(Inventory.quantity > 0)
+        elif inv_status == 'out_of_stock':
+            inventory_query = inventory_query.filter(Inventory.quantity <= 0)
+    if inv_search:
+        inventory_query = inventory_query.filter(Inventory.name.ilike(f"%{inv_search}%"))
+
+    # Pagination for inventory
+    inv_page = request.args.get('inv_page', 1, type=int)
+    per_page = 10
+    inventory_paginated = inventory_query.order_by(Inventory.id.desc()).paginate(page=inv_page, per_page=per_page)
+
+    # Transactions query
+    transaction_query = Transaction.query.filter_by(user_id=current_user.id)
+    trans_type = request.args.get('transaction_type')
+    trans_category = request.args.get('transaction_category')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    if trans_type:
+        transaction_query = transaction_query.filter_by(type=trans_type)
+    if trans_category:
+        transaction_query = transaction_query.filter_by(category=trans_category)
+    if start_date:
+        transaction_query = transaction_query.filter(Transaction.date >= start_date)
+    if end_date:
+        transaction_query = transaction_query.filter(Transaction.date <= end_date)
+
+    # Pagination for transactions
+    trans_page = request.args.get('trans_page', 1, type=int)
+    transactions_paginated = transaction_query.order_by(Transaction.date.desc()).paginate(page=trans_page, per_page=10)
+
+    # Summary stats
+    total_items = Inventory.query.filter_by(user_id=current_user.id).count()
+    total_in_stock = Inventory.query.filter(Inventory.user_id == current_user.id, Inventory.quantity > 0).count()
+    total_out_of_stock = Inventory.query.filter(Inventory.user_id == current_user.id, Inventory.quantity <= 0).count()
+
+    total_income = db.session.query(db.func.sum(Transaction.amount)).filter_by(user_id=current_user.id,
+                                                                               type="Income").scalar() or 0
+    total_expense = db.session.query(db.func.sum(Transaction.amount)).filter_by(user_id=current_user.id,
+                                                                                type="Expense").scalar() or 0
+    net_profit = total_income - total_expense
+
+    categories = [c[0] for c in db.session.query(Inventory.category).distinct()]  # unique categories
+
+    return render_template("quickbook.html",
+                           inventory=inventory_paginated.items,
+                           inventory_paginated=inventory_paginated,
+                           transactions=transactions_paginated.items,
+                           transactions_paginated=transactions_paginated,
+                           total_items=total_items,
+                           total_in_stock=total_in_stock,
+                           total_out_of_stock=total_out_of_stock,
+                           total_income=total_income,
+                           total_expense=total_expense,
+                           net_profit=net_profit,
+                           categories=categories)
+
+UPLOAD_FOLDER = 'static/uploads/receipts'
+
+# Add Transaction
+@seller_dashboard_bp.route("/transactions/add", methods=["GET", "POST"])
+@login_required
+def add_transaction():
+    if request.method == "POST":
+        receipt_file = request.files.get("receipt")
+        filename = None
+        if receipt_file and receipt_file.filename != "":
+            filename = secure_filename(receipt_file.filename)
+            receipt_file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+        t = Transaction(
+            user_id=current_user.id,
+            date=request.form.get("date") or date.today(),
+            type=request.form.get("type"),
+            category=request.form.get("category"),
+            description=request.form.get("description"),
+            amount=float(request.form.get("amount")),
+            payment_method=request.form.get("payment_method"),
+            receipt=filename
+        )
+        db.session.add(t)
+        db.session.commit()
+        flash("Transaction added successfully!", "success")
+        return redirect(url_for('seller_dashboard.transactions'))
+
+    return render_template("add_transaction.html", date_today=date.today())
+
+# Edit Transaction
+@seller_dashboard_bp.route("/transactions/edit/<int:id>", methods=["GET", "POST"])
+@login_required
+def edit_transaction(id):
+    t = Transaction.query.get_or_404(id)
+    if request.method == "POST":
+        t.date = request.form.get("date")
+        t.type = request.form.get("type")
+        t.category = request.form.get("category")
+        t.description = request.form.get("description")
+        t.amount = float(request.form.get("amount"))
+        t.payment_method = request.form.get("payment_method")
+
+        receipt_file = request.files.get("receipt")
+        if receipt_file and receipt_file.filename != "":
+            filename = secure_filename(receipt_file.filename)
+            receipt_file.save(os.path.join(UPLOAD_FOLDER, filename))
+            t.receipt = filename
+
+        db.session.commit()
+        flash("Transaction updated successfully!", "success")
+        return redirect(url_for('seller_dashboard.transactions'))
+
+    return render_template("edit_transaction.html", transaction=t)
+
+# Delete Transaction
+@seller_dashboard_bp.route("/transactions/delete/<int:id>", methods=["POST"])
+@login_required
+def delete_transaction(id):
+    t = Transaction.query.get_or_404(id)
+    if t.receipt:
+        try:
+            os.remove(os.path.join(UPLOAD_FOLDER, t.receipt))
+        except:
+            pass
+    db.session.delete(t)
+    db.session.commit()
+    flash("Transaction deleted successfully!", "success")
+    return redirect(url_for('seller_dashboard.transactions'))
+
+@seller_dashboard_bp.route("/transactions/export")
+@login_required
+def export_transactions():
+    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.asc()).all()
+
+    def generate():
+        yield "Date,Type,Category,Description,Amount,Payment Method\n"
+        for t in transactions:
+            yield f"{t.date},{t.type},{t.category},{t.description},{t.amount},{t.payment_method}\n"
+
+    return Response(generate(), mimetype="text/csv",
+                    headers={"Content-Disposition": "attachment;filename=transactions.csv"})
+
+
+from datetime import date, timedelta
+
+def process_recurring_transactions():
+    today = date.today()
+    recurring = Transaction.query.filter_by(is_recurring=True).all()
+
+    for t in recurring:
+        if t.next_occurrence and t.next_occurrence <= today:
+            # Create new transaction
+            new_t = Transaction(
+                user_id=t.user_id,
+                date=t.next_occurrence,
+                type=t.type,
+                category=t.category,
+                description=t.description,
+                amount=t.amount,
+                payment_method=t.payment_method,
+                receipt=t.receipt
+            )
+            db.session.add(new_t)
+
+            # Update next occurrence
+            if t.recurring_interval == "weekly":
+                t.next_occurrence += timedelta(weeks=1)
+            elif t.recurring_interval == "monthly":
+                month = t.next_occurrence.month + 1
+                year = t.next_occurrence.year + month // 13
+                month = month % 12 or 1
+                t.next_occurrence = t.next_occurrence.replace(year=year, month=month)
+            elif t.recurring_interval == "yearly":
+                t.next_occurrence = t.next_occurrence.replace(year=t.next_occurrence.year + 1)
+
+    db.session.commit()
+
+
+@seller_dashboard_bp.route("/verify_seller", methods=["GET", "POST"])
+@login_required
+def verify_seller():
+    if current_user.is_verified:
+        flash("You are already verified.", "success")
+        return redirect(url_for("seller_dashboard.dashboard"))
+
+    if request.method == "POST":
+        gov_id = request.files.get("government_id")
+        selfie = request.files.get("selfie")
+
+        gov_id_path = save_file(gov_id, "verification")
+        selfie_path = save_file(selfie, "verification")
+
+        db.session.add(VerificationDocument(user_id=current_user.id, doc_type="government_id", file_path=gov_id_path))
+        db.session.add(VerificationDocument(user_id=current_user.id, doc_type="selfie", file_path=selfie_path))
+        db.session.commit()
+
+        flash("Documents submitted. Awaiting admin approval.", "info")
+        return redirect(url_for("seller_dashboard.my_dashboard"))
+
+    return render_template("seller_verify.html")
+
+from io import StringIO
+import csv
+
+
+# ------------------ Inventory List ------------------
+@seller_dashboard_bp.route("/inventory")
+@login_required
+def inventory():
+    categories = ['Feed', 'Medicine', 'Equipment', 'Other']
+    status_filter = request.args.get('status', '')
+    category_filter = request.args.get('category', '')
+    search = request.args.get('search', '')
+
+    query = Inventory.query.filter_by(user_id=current_user.id)
+
+    if category_filter:
+        query = query.filter_by(category=category_filter)
+
+    if status_filter:
+        if status_filter == 'in_stock':
+            query = query.filter(Inventory.quantity > 0)
+        elif status_filter == 'out_of_stock':
+            query = query.filter(Inventory.quantity == 0)
+
+    if search:
+        query = query.filter(Inventory.name.ilike(f"%{search}%"))
+
+    inventory_items = query.all()
+
+    total_items = Inventory.query.filter_by(user_id=current_user.id).count()
+    total_in_stock = Inventory.query.filter(Inventory.user_id==current_user.id, Inventory.quantity>0).count()
+    total_out_of_stock = Inventory.query.filter(Inventory.user_id==current_user.id, Inventory.quantity==0).count()
+
+    return render_template("quickbook.html",
+                           inventory=inventory_items,
+                           categories=categories,
+                           total_items=total_items,
+                           total_in_stock=total_in_stock,
+                           total_out_of_stock=total_out_of_stock)
+
+# ------------------ Add Inventory ------------------
+@seller_dashboard_bp.route("/inventory/add", methods=["GET", "POST"])
+@login_required
+def add_inventory():
+    categories = ['Feed', 'Medicine', 'Equipment', 'Other']
+
+    if request.method == "POST":
+        name = request.form['name']
+        category = request.form['category']
+        quantity = int(request.form['quantity'])
+        price = float(request.form['price'])
+        description = request.form.get('description')
+
+        new_item = Inventory(user_id=current_user.id,
+                             name=name,
+                             category=category,
+                             quantity=quantity,
+                             price=price,
+                             description=description)
+        db.session.add(new_item)
+        db.session.commit()
+
+        flash("Inventory item added successfully!", "success")
+        return redirect(url_for('seller_dashboard.inventory'))
+
+    return render_template("add_inventory.html", categories=categories)
+
+# ------------------ Edit Inventory ------------------
+@seller_dashboard_bp.route("/inventory/edit/<int:id>", methods=["GET", "POST"])
+@login_required
+def edit_inventory(id):
+    item = Inventory.query.get_or_404(id)
+    categories = ['Feed', 'Medicine', 'Equipment', 'Other']
+
+    if request.method == "POST":
+        item.name = request.form['name']
+        item.category = request.form['category']
+        item.quantity = int(request.form['quantity'])
+        item.price = float(request.form['price'])
+        item.description = request.form.get('description')
+        db.session.commit()
+        flash("Inventory updated successfully!", "success")
+        return redirect(url_for('seller_dashboard.inventory'))
+
+    return render_template("edit_inventory.html", item=item, categories=categories)
+
+# ------------------ Delete Inventory ------------------
+@seller_dashboard_bp.route("/inventory/delete/<int:id>", methods=["POST"])
+@login_required
+def delete_inventory(id):
+    item = Inventory.query.get_or_404(id)
+    db.session.delete(item)
+    db.session.commit()
+    flash("Inventory item deleted!", "success")
+    return redirect(url_for('seller_dashboard.inventory'))
+
+# ------------------ Export Inventory ------------------
+@seller_dashboard_bp.route("/inventory/export")
+@login_required
+def export_inventory():
+    inventory_items = Inventory.query.filter_by(user_id=current_user.id).all()
+
+    def generate():
+        yield "Name,Category,Quantity,Price,Description\n"
+        for i in inventory_items:
+            yield f"{i.name},{i.category},{i.quantity},{i.price},{i.description}\n"
+
+    return Response(
+        generate(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=inventory.csv"}
+    )
+
+@seller_dashboard_bp.route("/my_reviews")
+@login_required
+def my_reviews():
+    # Fetch all reviews submitted by the current user
+    given_reviews = Review.query.filter_by(reviewer_id=current_user.id) \
+        .order_by(Review.created_at.desc()).all()
+
+    return render_template("inspection_feedback.html", given_reviews=given_reviews)

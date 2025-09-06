@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3>Inventory & Transactions</h3>
+
+<!-- Summary Cards -->
+<div class="summary-cards flex flex-wrap gap-4 mb-4">
+  <!-- Inventory Stats -->
+  <div class="card p-2 bg-green-100 flex-1 min-w-[150px]">Total Items: {{ total_items }}</div>
+  <div class="card p-2 bg-blue-100 flex-1 min-w-[150px]">In Stock: {{ total_in_stock }}</div>
+  <div class="card p-2 bg-red-100 flex-1 min-w-[150px]">Out of Stock: {{ total_out_of_stock }}</div>
+
+  <!-- Financial Stats -->
+  <div class="card p-2 bg-green-200 flex-1 min-w-[150px]">Total Income: ₦{{ total_income }}</div>
+  <div class="card p-2 bg-red-200 flex-1 min-w-[150px]">Total Expense: ₦{{ total_expense }}</div>
+  <div class="card p-2 bg-blue-200 flex-1 min-w-[150px]">Net Profit: ₦{{ net_profit }}</div>
+</div>
+
+<!-- Add / Export Buttons -->
+<div class="mb-3 flex flex-wrap gap-2">
+  <a href="{{ url_for('seller_dashboard.add_inventory') }}" class="btn btn-primary">+ Add Item</a>
+  <a href="{{ url_for('seller_dashboard.export_inventory') }}" class="btn btn-success">Export Inventory CSV</a>
+  <a href="{{ url_for('seller_dashboard.add_transaction') }}" class="btn btn-primary">+ Add Transaction</a>
+  <a href="{{ url_for('seller_dashboard.export_transactions') }}" class="btn btn-success">Export Transactions CSV</a>
+</div>
+
+<!-- Inventory Section -->
+<h5 class="mt-4">Inventory</h5>
+<form method="get" class="mb-3 flex flex-wrap gap-2 items-center">
+ <input
+  type="text"
+  name="inventory_category"
+  class="form-control"
+  style="min-width: 160px;"
+  placeholder="Enter category"
+  value="{{ request.args.get('inventory_category', '') }}"
+>
+
+
+  <select name="status" class="form-control" style="min-width: 140px;">
+    <option value="">All Status</option>
+    <option value="in_stock" {% if request.args.get('status') == 'in_stock' %}selected{% endif %}>In Stock</option>
+    <option value="out_of_stock" {% if request.args.get('status') == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+  </select>
+
+  <input type="text" name="search" class="form-control" style="min-width: 180px;" placeholder="Search item..." value="{{ request.args.get('search', '') }}">
+
+  <button class="btn btn-secondary min-w-[80px]">Filter</button>
+</form>
+
+<div class="overflow-x-auto mb-5">
+  <table class="table table-striped table-hover min-w-full">
+    <thead class="thead-light">
+      <tr>
+        <th>Item Name</th>
+        <th>Category</th>
+        <th>Quantity</th>
+        <th>Status</th>
+        <th>Price (₦)</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in inventory %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ item.category }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>
+          {% if item.quantity > 0 %}
+            <span class="badge bg-success">In Stock</span>
+          {% else %}
+            <span class="badge bg-danger">Out of Stock</span>
+          {% endif %}
+        </td>
+        <td>{{ "{:,.2f}".format(item.price) }}</td>
+        <td>
+          <a href="{{ url_for('seller_dashboard.edit_inventory', id=item.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+          <form action="{{ url_for('seller_dashboard.delete_inventory', id=item.id) }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this item?')">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center text-muted">No inventory items found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Transactions Section -->
+<h5 class="mt-4">Transactions</h5>
+<form method="get" class="mb-3 flex flex-wrap gap-2 items-center">
+  <select name="transaction_type" class="form-control" style="min-width: 140px;">
+    <option value="">All Types</option>
+    <option value="Income" {% if request.args.get('transaction_type') == 'Income' %}selected{% endif %}>Income</option>
+    <option value="Expense" {% if request.args.get('transaction_type') == 'Expense' %}selected{% endif %}>Expense</option>
+  </select>
+
+  <select name="transaction_category" class="form-control" style="min-width: 160px;">
+    <option value="">All Categories</option>
+    {% for cat in categories %}
+      <option value="{{ cat }}" {% if request.args.get('transaction_category') == cat %}selected{% endif %}>{{ cat }}</option>
+    {% endfor %}
+  </select>
+
+  <input type="date" name="start_date" class="form-control" style="min-width: 140px;" value="{{ request.args.get('start_date', '') }}">
+  <input type="date" name="end_date" class="form-control" style="min-width: 140px;" value="{{ request.args.get('end_date', '') }}">
+
+  <button class="btn btn-secondary min-w-[80px]">Filter</button>
+</form>
+
+<div class="overflow-x-auto">
+  <table class="table table-striped table-hover min-w-full">
+    <thead class="thead-light">
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Category</th>
+        <th>Description</th>
+        <th>Amount (₦)</th>
+        <th>Payment Method</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in transactions %}
+      <tr>
+        <td>{{ t.date }}</td>
+        <td>{{ t.type }}</td>
+        <td>{{ t.category }}</td>
+        <td>{{ t.description }}</td>
+        <td>{{ "{:,.2f}".format(t.amount) }}</td>
+        <td>{{ t.payment_method }}</td>
+        <td>
+          <a href="{{ url_for('seller_dashboard.edit_transaction', id=t.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+          <form action="{{ url_for('seller_dashboard.delete_transaction', id=t.id) }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this transaction?')">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="text-center text-muted">No transactions found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

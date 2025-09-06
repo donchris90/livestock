@@ -3,16 +3,35 @@
 <div class="container mt-4">
 
   <!-- Greeting & Mini Profile -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h3>👋 Hello, {{ user.first_name }}!</h3>
-      <small class="text-muted">Role: {{ user.role.title() }}</small>
+ <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded shadow-sm">
+
+  <!-- Left Section: Greeting + Verification -->
+  <div>
+    <h4 class="mb-1">👋 Hello, {{ user.first_name }}!</h4>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      {% if not current_user.is_verified %}
+       <a href="{{ url_for('seller_dashboard.verify_seller') }}" class="btn btn-sm btn-outline-warning" data-bs-toggle="tooltip" title="Submit ID and selfie to get verified">
+  <i class="bi bi-exclamation-circle-fill"></i> Unverified
+</a>
+
+      {% else %}
+        <span class="badge bg-success d-flex align-items-center gap-1">
+          <i class="bi bi-check-circle-fill"></i> Verified Seller
+        </span>
+      {% endif %}
     </div>
-    <div class="text-end">
-      <img src="{{ user.avatar_url or url_for('static', filename='img/avatar-default.png') }}"
-           class="rounded-circle border" width="60" height="60" alt="Avatar">
-    </div>
+
   </div>
+
+  <!-- Right Section: Profile Photo -->
+  <div>
+    <img src="{{ user.profile_photo }}"
+         class="rounded-circle border border-secondary"
+         width="70" height="70" alt="Avatar">
+  </div>
+
+</div>
+
 <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -49,51 +68,7 @@
 </script>
 
 
-<div class="container my-4">
-  <h4 class="mb-3">Expiring / Expired Featured Products</h4>
 
-  {% if expiring_products %}
-    <div class="row g-3">
-      {% for product in expiring_products %}
-        {% set days_left = (product.featured_expiry - now).days %}
-        <div class="col-md-4">
-          <div class="card shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-              <h6 class="card-title">{{ product.title }}</h6>
-
-              {% if product.featured_expiry < now %}
-                <span class="badge bg-danger mb-2">Expired</span>
-              {% else %}
-                <span class="badge bg-warning mb-2">Expiring Soon</span>
-              {% endif %}
-
-              <!-- Progress bar showing urgency -->
-              {% if product.featured_expiry >= now %}
-                {% set progress = ((3 - days_left)/3 * 100) if days_left <= 3 else 0 %}
-                <div class="progress mb-2" style="height: 8px;">
-                  <div class="progress-bar bg-warning" role="progressbar" style="width: {{ progress }}%;"
-                       aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-              {% endif %}
-
-              <small class="text-muted">
-                Expiry: {{ product.featured_expiry.strftime('%d %b, %Y') }}
-                {% if product.featured_expiry >= now and days_left <= 3 %}
-                  ({{ days_left }} day{{ 's' if days_left != 1 else '' }} left)
-                {% endif %}
-              </small>
-
-              <a href="{{ url_for('products.edit_product', product_id=product.id) }}"
-                 class="btn btn-sm btn-primary mt-auto">Manage Product</a>
-            </div>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p class="text-center text-muted">No expiring or expired featured products.</p>
-  {% endif %}
-</div>
   <div class="row g-4">
     <!-- Left Column: Account Summary & Transfer -->
     <div class="col-lg-6 col-md-12">
@@ -122,12 +97,78 @@
             <span>Withdrawn:</span>
             <strong>₦{{ "{:,.2f}".format(withdrawn_amount or 0) }}</strong>
           </li>
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <span>Wallet Balance:</span>
-            <div>
-              <strong id="wallet-balance">₦{{ "{:,.2f}".format(balance or 0) }}</strong>
-              <a href="{{ url_for('seller_dashboard.withdraw') }}" class="btn btn-sm btn-warning ms-2">Withdraw</a>
-            </div>
+   <li class="list-group-item">
+  <div class="d-flex justify-content-between align-items-center">
+    <span>Wallet Balance:</span>
+    <div>
+      <strong id="wallet-balance">₦{{ "{:,.2f}".format(balance or 0) }}</strong>
+      {% if current_user.is_verified %}
+        <!-- Withdraw button with tooltip -->
+        <a href="{{ url_for('seller_dashboard.withdraw') }}"
+           class="btn btn-sm btn-warning ms-2"
+           data-bs-toggle="tooltip"
+           title="Withdraw funds from your wallet">
+          Withdraw
+        </a>
+      {% else %}
+        <!-- KYC Required badge as clickable link -->
+        <a href="{{ url_for('seller_dashboard.verify_seller') }}"
+           class="badge bg-secondary ms-2 text-decoration-none"
+           data-bs-toggle="tooltip"
+           title="Click here to complete your KYC verification">
+          KYC Required
+        </a>
+        <small class="text-muted d-block mt-1">
+          Complete your KYC verification before you can withdraw funds.
+        </small>
+      {% endif %}
+    </div>
+  </div>
+</li>
+
+<!-- Pending Withdrawals Card -->
+<div class="card mt-4">
+  <div class="card-header bg-warning text-dark">
+    <strong>💸 Pending Withdrawals</strong>
+  </div>
+  <div class="card-body">
+    {% if pending_withdrawals %}
+      <table class="table table-sm table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Requested At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in pending_withdrawals %}
+          <tr>
+            <td>₦{{ "%.2f"|format(w.amount) }}</td>
+            <td><span class="badge bg-warning">{{ w.status|capitalize }}</span></td>
+            <td>{{ w.created_at.strftime("%d %b %Y %H:%M") }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-muted mb-0">No pending withdrawals.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Enable Bootstrap tooltips -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+  });
+</script>
+
+
+
           </li>
           <li class="list-group-item">
             <div class="input-group">
@@ -256,6 +297,54 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 
+<div class="container my-4">
+  <h4 class="mb-3">Expiring / Expired Featured Products</h4>
+
+  {% if expiring_products %}
+    <div class="row g-3">
+      {% for product in expiring_products %}
+        {% if product.featured_expiry %}
+          {% set days_left = (product.featured_expiry - now).days %}
+          <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+              <div class="card-body d-flex flex-column">
+                <h6 class="card-title">{{ product.title }}</h6>
+
+                {% if product.featured_expiry < now %}
+                  <span class="badge bg-danger mb-2">Expired</span>
+                {% else %}
+                  <span class="badge bg-warning mb-2">Expiring Soon</span>
+                {% endif %}
+
+                <!-- Progress bar showing urgency -->
+                {% if product.featured_expiry >= now %}
+                  {% set progress = ((3 - days_left)/3 * 100) if days_left <= 3 else 0 %}
+                  <div class="progress mb-2" style="height: 8px;">
+                    <div class="progress-bar bg-warning" role="progressbar"
+                         style="width: {{ progress }}%;"
+                         aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                {% endif %}
+
+                <small class="text-muted">
+                  Expiry: {{ product.featured_expiry.strftime('%d %b, %Y') }}
+                  {% if product.featured_expiry >= now and days_left <= 3 %}
+                    ({{ days_left }} day{{ 's' if days_left != 1 else '' }} left)
+                  {% endif %}
+                </small>
+
+                <a href="{{ url_for('seller_dashboard.edit_product', product_id=product.id) }}"
+                   class="btn btn-sm btn-primary mt-auto">Manage Product</a>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-center text-muted">No expiring or expired featured products.</p>
+  {% endif %}
+</div>
 
     </div>
 

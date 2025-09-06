@@ -1,134 +1,165 @@
-{% extends 'logistics/base.html' %}
+{% extends "logistics/base.html" %}
 {% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">🚚 Logistics Dashboard</h2>
 
-    <!-- Quick Overview -->
-    <div class="row g-4">
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-success border-4">
-                <div class="card-body">
-                    <h6 class="card-title">Total Deliveries</h6>
-                    <h4 class="fw-bold text-success">12</h4>
+<div class="container mt-4">
+
+    <!-- Welcome Header -->
+    <div class="mb-4 text-center">
+        <h1 class="fw-bold">👋 Welcome, {{ logistics.first_name }} {{ logistics.last_name }}
+            {% if logistics.kyc and logistics.kyc.status == 'approved' %}
+                <span class="text-blue-500" title="Verified">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block align-middle" fill="currentColor" viewBox="0 0 24 24" style="width: 25px; height: 25px;">
+                        <path fill="currentColor" d="M22.5 12c0 5.8-4.7 10.5-10.5 10.5S1.5 17.8 1.5 12 6.2 1.5 12 1.5 22.5 6.2 22.5 12zm-11 4.8l6.3-6.3-1.4-1.4-4.9 4.9-2.1-2.1-1.4 1.4 3.5 3.5z"/>
+                    </svg>
+                </span>
+            {% endif %}
+        </h1>
+        {% if logistics.kyc and logistics.kyc.status == 'approved' %}
+            <span class="badge bg-success">Verified</span>
+        {% else %}
+            <span class="badge bg-secondary">Unverified</span>
+        {% endif %}
+        <p class="text-muted">Here’s a summary of your profile, earnings, and bookings</p>
+    </div>
+
+    <!-- Top Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Profile Completion -->
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3 text-center h-100">
+                <i class="bi bi-person-check-fill fs-3 text-primary mb-2"></i>
+                <h6>Profile Completion</h6>
+                <div class="w-100 bg-light rounded-pill" style="height: 12px;">
+                    <div class="bg-success rounded-pill" style="width: {{ completion }}%; height: 12px;"></div>
                 </div>
+                <p class="mt-2 mb-1">{{ completion }}% complete</p>
+                {% if not user.kyc or user.kyc.status != 'approved' %}
+                    <div class="alert alert-warning py-2 px-2 mb-2">
+                        <small><strong>KYC Pending!</strong> Complete your verification to unlock full features.</small>
+                    </div>
+                    <a href="{{ url_for('logistics.kyc') }}" class="btn btn-primary btn-sm w-75 mb-2">Complete KYC</a>
+                {% endif %}
+                <a href="{{ url_for('logistics.edit_profile') }}" class="btn btn-outline-primary btn-sm w-75">Update Profile</a>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-warning border-4">
-                <div class="card-body">
-                    <h6 class="card-title">Pending Requests</h6>
-                    <h4 class="fw-bold text-warning">3</h4>
-                </div>
+
+        <!-- Bookings -->
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3 text-center h-100">
+                <i class="bi bi-calendar-check-fill fs-3 text-success mb-2"></i>
+                <h6>Bookings</h6>
+                <p class="mb-0"><strong>Total:</strong> {{ total_bookings }}</p>
+                <p class="mb-0 text-success"><strong>Completed:</strong> {{ completed_bookings }}</p>
+                <p class="mb-0 text-warning"><strong>Pending:</strong> {{ pending_bookings }}</p>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-primary border-4">
-                <div class="card-body">
-                    <h6 class="card-title">Wallet Balance</h6>
-                    <h4 class="fw-bold text-primary">₦45,000</h4>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-danger border-4">
-                <div class="card-body">
-                    <h6 class="card-title">Unread Messages</h6>
-                    <h4 class="fw-bold text-danger">5</h4>
-                </div>
+
+        <!-- Earnings -->
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3 h-100">
+                <h5 class="fw-bold mb-3">💰 Earnings</h5>
+                <p><strong>Released Escrow:</strong> ₦{{ "{:,.2f}".format(total_escrow_released) }}</p>
+                <p><strong>Direct Payments:</strong> ₦{{ "{:,.2f}".format(total_direct_received) }}</p>
+                <hr>
+                <p><strong>Total Earned:</strong> ₦{{ "{:,.2f}".format(total_escrow_released + total_direct_received) }}</p>
+                <p><strong>Wallet Balance:</strong> ₦{{ "{:,.2f}".format(wallet.balance or 0) }}</p>
+
+                {% if wallet.balance > 0 %}
+                    <form action="{{ url_for('seller_dashboard.agent_withdraw') }}" method="GET">
+                        <button type="submit" class="btn btn-primary btn-sm mt-2 w-100">
+                            Withdraw ₦{{ "{:,.2f}".format(wallet.balance) }}
+                        </button>
+                    </form>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Section Links -->
-    <div class="row g-4 mt-5">
-        <div class="col-md-4">
-            <a href="{{ url_for('logistics.view_requests') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100 hover-shadow">
-                    <div class="card-body text-center">
-                        <h5>📦 View Requests</h5>
-                        <p class="text-muted">Check all your delivery requests.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('logistics.logistics_notifications') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100 hover-shadow">
-                    <div class="card-body text-center">
-                        <h5>🔔 Notifications</h5>
-                        <p class="text-muted">View all alerts and system messages.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('chat.inbox') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100 hover-shadow">
-                    <div class="card-body text-center">
-                        <h5>📥 Inbox</h5>
-                        <p class="text-muted">Check and reply to user messages.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
+    <!-- 💵 Escrow Status -->
+    <div class="card mb-4 shadow-sm p-3">
+        <h5 class="mb-3">💵 Escrow Status (Agent & Logistics)</h5>
 
-    <!-- Second Row of Actions -->
-    <div class="row g-4 mt-3">
-        <div class="col-md-4">
-            <a href="{{ url_for('logistics.wallet') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <h5>💼 Wallet</h5>
-                        <p class="text-muted">View wallet balance and withdraw funds.</p>
-                    </div>
+        {% if escrows %}
+            <div class="progress mb-3">
+                {% set escrow_total = total_escrow_released + total_escrow_pending %}
+                {% set escrow_percent = (total_escrow_released / escrow_total * 100) if escrow_total > 0 else 0 %}
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ escrow_percent }}%">
+                    Released ₦{{ "{:,.2f}".format(total_escrow_released) }} / ₦{{ "{:,.2f}".format(escrow_total) }}
                 </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('logistics.appointments') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <h5>📅 Appointments</h5>
-                        <p class="text-muted">Manage scheduled pickups and drop-offs.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="{{ url_for('logistics.analytics') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <h5>📊 Performance</h5>
-                        <p class="text-muted">View delivery analytics and reviews.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
+            </div>
 
-    <!-- Support & History -->
-    <div class="row g-4 mt-3">
+           <div id="escrow-list">
+    {% for escrow in escrows %}
+        {% set released_amount = escrow.base_amount if escrow.status == 'released' else 0 %}
+        {% set pending_amount = escrow.base_amount if escrow.status != 'released' else 0 %}
+        <div class="card mb-2 p-2 shadow-sm {% if escrow.status=='released' %}bg-light text-muted{% endif %}" id="escrow-{{ escrow.id }}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>Provider:</strong> {{ escrow.provider.full_name }}<br>
+                    <strong>Type:</strong> {{ escrow.type|capitalize }}
+                </div>
+                <div class="text-end">
+                    <div class="released-amount">💰 Released: ₦{{ "{:,.2f}".format(released_amount) }}</div>
+                    <div class="pending-amount text-warning">⏳ Pending: ₦{{ "{:,.2f}".format(pending_amount) }}</div>
+                    <div class="status">📌 Status: {{ escrow.status.replace("_", " ").title() }}</div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>No escrows found.</p>
+{% endif %}
+
+
+    <!-- Recent Bookings & Feedback -->
+    <div class="row g-3 mb-4">
         <div class="col-md-6">
-            <a href="{{ url_for('logistics.transaction_history') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <h5>🧾 Transaction History</h5>
-                        <p class="text-muted">See all past payouts and earnings.</p>
-                    </div>
-                </div>
-            </a>
+            <div class="card shadow-sm p-3 h-100">
+                <h5 class="mb-3">📅 Recent Bookings</h5>
+                {% if recent_bookings %}
+                    <ul class="list-group list-group-flush">
+                        {% for booking in recent_bookings %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ booking.buyer.first_name }} {{ booking.buyer.last_name }}</strong>
+                                </div>
+                                {% if booking.status == 'completed' %}
+                                    <span class="badge bg-success">{{ booking.status|capitalize }}</span>
+                                {% elif booking.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">{{ booking.status|capitalize }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ booking.status|capitalize }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No recent bookings.</p>
+                {% endif %}
+            </div>
         </div>
+
         <div class="col-md-6">
-            <a href="{{ url_for('logistics.contact') }}" class="text-decoration-none">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <h5>📞 Support</h5>
-                        <p class="text-muted">Need help? Contact admin or support.</p>
-                    </div>
-                </div>
-            </a>
+            <div class="card shadow-sm p-3 h-100">
+                <h5 class="mb-3">⭐ Recent Feedback</h5>
+                {% if recent_feedback %}
+                    <ul class="list-group list-group-flush">
+                        {% for feedback in recent_feedback %}
+                            <li class="list-group-item">
+                                <strong>{{ feedback.reviewer.first_name }} {{ feedback.reviewer.last_name }}</strong> rated
+                                <strong>{{ feedback.rating }}/5</strong>
+                                <p>{{ feedback.comment }}</p>
+                                <small class="text-muted">{{ feedback.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No recent feedback found.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
+
 {% endblock %}

@@ -16,15 +16,44 @@ headers = {
     "Content-Type": "application/json"
 }
 
+def create_transfer_recipient(name, account_number, bank_code):
+    """
+    Creates a Paystack transfer recipient.
+    """
+    url = "https://api.paystack.co/transferrecipient"
+    headers = {
+        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "type": "nuban",
+        "name": name,
+        "account_number": account_number,
+        "bank_code": bank_code,
+        "currency": "NGN"
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status"):
+            return data["data"]  # returns recipient info (including recipient_code)
+        return None
+    except requests.exceptions.RequestException as e:
+        print("Paystack recipient error:", e)
+        return None
+
+
 def initialize_transaction(email, amount, reference, callback_url):
     url = "https://api.paystack.co/transaction/initialize"
     headers = {
-        "Authorization": f"Bearer {os.getenv('PAYSTACK_SECRET_KEY')}",
+        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
         "Content-Type": "application/json"
     }
     data = {
         "email": email,
-        "amount": int(amount * 100),  # Paystack expects amount in kobo
+        "amount": int(amount * 100),  # Paystack expects kobo
         "reference": reference,
         "callback_url": callback_url,
     }
@@ -35,6 +64,32 @@ def initialize_transaction(email, amount, reference, callback_url):
         return response.json()
     except requests.exceptions.RequestException as e:
         print("Payment init error:", e)
+        return None
+
+
+def initiate_paystack_transfer(recipient_code, amount, reason):
+    """
+    Initiates a Paystack transfer to a recipient.
+    Amount must be in Naira (we'll convert to Kobo).
+    """
+    url = "https://api.paystack.co/transfer"
+    headers = {
+        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "source": "balance",
+        "amount": int(amount * 100),  # Convert naira → kobo
+        "recipient": recipient_code,
+        "reason": reason
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print("Paystack transfer error:", e)
         return None
 
 
@@ -65,22 +120,6 @@ def verify_account_number(account_number, bank_code):
     res = requests.get(url, headers=headers)
     data = res.json()
     if data.get("status") and data.get("data"):
-        return data["data"]
-    return None
-
-def create_transfer_recipient(name, account_number, bank_code):
-    url = "https://api.paystack.co/transferrecipient"
-    headers = {"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
-    payload = {
-        "type": "nuban",
-        "name": name,
-        "account_number": account_number,
-        "bank_code": bank_code,
-        "currency": "NGN"
-    }
-    res = requests.post(url, json=payload, headers=headers)
-    data = res.json()
-    if data.get("status"):
         return data["data"]
     return None
 

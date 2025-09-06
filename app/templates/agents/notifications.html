@@ -1,3 +1,6 @@
+{% extends "layout.html" %}
+
+{% block content %}
 <h3>Notifications</h3>
 <ul class="list-group">
   {% for note in notifications %}
@@ -6,3 +9,4 @@
     </li>
   {% endfor %}
 </ul>
+{% endblock %}

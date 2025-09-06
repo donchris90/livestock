@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h3>Verify Seller: {{ seller.first_name }} {{ seller.last_name }}</h3>
+
+<div class="mb-3">
+  <strong>Email:</strong> {{ seller.email }} <br>
+  <strong>Phone:</strong> {{ seller.phone }}
+</div>
+
+<h5>Uploaded Documents</h5>
+<div class="row mb-4">
+  {% for doc in documents %}
+    <div class="col-md-4 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <p><strong>{{ doc.doc_type.replace('_', ' ').title() }}</strong></p>
+          {% if doc.file_path.endswith(('.png', '.jpg', '.jpeg')) %}
+            <img src="{{ url_for('static', filename=doc.file_path) }}" class="img-fluid rounded mb-2">
+          {% else %}
+            <a href="{{ url_for('static', filename=doc.file_path) }}" target="_blank">View Document</a>
+          {% endif %}
+          <p>Status: <span class="badge bg-info">{{ doc.status }}</span></p>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<form method="post" class="d-flex gap-2">
+  <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
+  <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+</form>
+{% endblock %}

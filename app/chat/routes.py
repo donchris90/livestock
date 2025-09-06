@@ -42,15 +42,23 @@ def inbox():
 
     chat_summary = []
     for uid, last_msg in conversations.items():
+        user = contact_map.get(uid)
+        if not user:
+            # fallback for deleted users
+            user = type("DeletedUser", (), {
+                "id": uid,
+                "first_name": "Deleted",
+                "last_name": "User"
+            })()
+
         chat_summary.append({
-            'user': contact_map[uid],
+            'user': user,
             'last_message': last_msg.content,
             'timestamp': last_msg.timestamp,
             'unread': unread_map.get(uid, 0)
         })
 
     return render_template('chat/inbox.html', chats=chat_summary)
-
 
 @chat_bp.route('/chat/<int:receiver_id>')
 @login_required

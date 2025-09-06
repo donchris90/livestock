@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
 
 {% block content %}
 <div class="container mt-5">
@@ -15,11 +15,17 @@
                             <div class="me-3">
                                 <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center"
                                      style="width: 40px; height: 40px;">
-                                    {{ chat.user.first_name[0] }}{{ chat.user.last_name[0] }}
+                                    {{ chat.user.first_name[0] if chat.user.first_name else "D" }}
+                                    {{ chat.user.last_name[0] if chat.user.last_name else "U" }}
                                 </div>
                             </div>
                             <div>
-                                <div><strong>{{ chat.user.first_name }} {{ chat.user.last_name }}</strong></div>
+                                <div>
+                                    <strong>
+                                        {{ chat.user.first_name }} {{ chat.user.last_name }}
+                                        {% if "Deleted" in chat.user.first_name %}<span class="text-muted">(Deleted)</span>{% endif %}
+                                    </strong>
+                                </div>
                                 <small class="text-muted truncate">
                                     {{ chat.last_message[:50] }}{% if chat.last_message|length > 50 %}...{% endif %}
                                 </small>
@@ -41,7 +47,4 @@
         </div>
     {% endif %}
 </div>
-</body>
-</html>
-
 {% endblock %}

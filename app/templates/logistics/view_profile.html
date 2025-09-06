@@ -1,0 +1,69 @@
+{% extends "logistics/base.html" %}
+
+{% block title %}Agent Profile{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h4 class="mb-0">Agent Profile</h4>
+    </div>
+    <div class="card-body">
+
+      <div class="row">
+        <!-- Left Section -->
+        <div class="col-md-4 text-center">
+          <img src="https://via.placeholder.com/150" class="img-thumbnail rounded-circle mb-3" alt="Agent Avatar" />
+          <h5>{{ agent.user.first_name }} {{ agent.user.last_name }}</h5>
+          <p class="text-muted">{{ agent.user.email }}</p>
+
+          {% if agent.verified %}
+            <span class="badge bg-success"><i class="fas fa-check-circle"></i> Verified</span>
+          {% else %}
+            <span class="badge bg-secondary">Not Verified</span>
+          {% endif %}
+
+          {% if agent.availability_status %}
+            <div class="mt-2">
+              <span class="badge bg-info">{{ agent.availability_status }}</span>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Right Section -->
+        <div class="col-md-8">
+          {% if agent.bio %}
+            <h5>About</h5>
+            <p>{{ agent.bio }}</p>
+          {% endif %}
+
+          {% if agent.specialties %}
+            <h5>Specialties</h5>
+            <ul>
+              {% for tag in agent.specialties %}
+                <li>{{ tag }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+
+          {% if agent.portfolio_links %}
+            <h5>Portfolio Links</h5>
+            <ul>
+              {% for link in agent.portfolio_links %}
+                <li><a href="{{ link }}" target="_blank">{{ link }}</a></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+
+          {% if agent.whatsapp_link %}
+            <a href="{{ agent.whatsapp_link }}" target="_blank" class="btn btn-success mt-3">
+              <i class="fab fa-whatsapp"></i> Contact on WhatsApp
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

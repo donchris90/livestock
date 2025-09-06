@@ -5,6 +5,7 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy import Enum
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum as PgEnum
+from datetime import date, datetime
 
 from flask_login import UserMixin
 from sqlalchemy.dialects.postgresql import JSON
@@ -135,7 +136,7 @@ class Payment(db.Model):
 
     def set_expiry(self, duration_days):
         self.expires_at = datetime.utcnow() + timedelta(days=duration_days)
-
+from sqlalchemy import Numeric
 from decimal import Decimal
 class Wallet(db.Model):
     __tablename__ = 'wallet'
@@ -143,9 +144,10 @@ class Wallet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
 
-    balance = db.Column(db.Numeric(precision=12, scale=2), default=Decimal('0.00'))
-    promotion_revenue = db.Column(db.Float, default=0.0)
 
+    promotion_revenue = db.Column(db.Float, default=0.0)
+    balance = db.Column(Numeric(precision=12, scale=2, asdecimal=True), default=Decimal("0.00"))
+    pending_balance = db.Column(Numeric(precision=12, scale=2, asdecimal=True), default=Decimal("0.00"))
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = db.relationship("User", back_populates="wallet", uselist=False)
@@ -332,6 +334,11 @@ class EscrowPayment(db.Model):
     product = db.relationship('Product', backref='escrow_transactions')
     payer = db.relationship("User", foreign_keys=[buyer_id], backref="escrows_paid")
     provider = db.relationship("User", foreign_keys=[provider_id], backref="escrows_received")
+    payment_method = db.Column(
+        db.Enum('escrow', 'direct', name='logistics_payment_enum'),
+        default='escrow',
+        nullable=False
+    )
 
     def check_ready(self):
         """Mark escrow ready if both parties completed."""
@@ -346,16 +353,18 @@ class EscrowPayment(db.Model):
     )
 
 
+
 class BankDetails(db.Model):
-    __tablename__ = 'bank_details'
+    __tablename__ = "bank_details"   # MUST match here and in Withdrawal
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    bank_name = db.Column(db.String(100))
-    account_number = db.Column(db.String(20))
-    account_name = db.Column(db.String(100))
-    recipient_code = db.Column(db.String(100), nullable=True)
-    bank_code = db.Column(db.String(10))
-    user = db.relationship("User", back_populates="bank_details")
+    bank_name = db.Column(db.String(100), nullable=False)
+    account_number = db.Column(db.String(20), nullable=False, unique=True)
+    account_name = db.Column(db.String(100), nullable=False)
+    bank_code = db.Column(db.String(10), nullable=False)
+
+    user = db.relationship("User", backref="bank_accounts")
 
 # ---------------------- SUBSCRIPTION ----------------------
 class Subscription(db.Model):
@@ -477,7 +486,7 @@ class User(UserMixin, db.Model):
     availability_status = db.Column(db.Boolean, default=True)  # or default=False depending on your logic
     from sqlalchemy.dialects.postgresql import ARRAY
     kyc = db.relationship("AgentKYC", back_populates="user", uselist=False)
-
+    verification_documents = db.relationship("VerificationDocument", backref="user")
     service_tags = db.Column(ARRAY(db.String), nullable=True)
     # Relationships
     payments = db.relationship('Payment', foreign_keys='Payment.user_id', back_populates='user')
@@ -581,6 +590,18 @@ class User(UserMixin, db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+
+
+class VerificationDocument(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    doc_type = db.Column(db.String(50))  # 'government_id', 'selfie', etc.
+    file_path = db.Column(db.String(200))
+    status = db.Column(db.String(20), default="pending")  # pending, approved, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 # ---------------------- PRODUCT ----------------------
 class Product(db.Model):
@@ -981,6 +1002,13 @@ class LogisticsBooking(db.Model):
     distance_km = db.Column(db.Float)
     estimated_cost = db.Column(db.Float)
 
+    # 🚀 Add this field
+    payment_method = db.Column(
+        Enum('escrow', 'direct', name='logistics_payment_enum'),
+        default='escrow',
+        nullable=False
+    )
+
     status = db.Column(
         Enum('pending', 'accepted', 'rejected', 'completed', name='booking_status_enum'),
         default='pending'
@@ -1059,3 +1087,54 @@ class AgentKYC(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = db.relationship("User", back_populates="kyc")
+
+class Expense(db.Model):
+    __tablename__ = 'expense'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(200))
+    amount = db.Column(db.Float, nullable=False)
+    payment_method = db.Column(db.String(50))
+
+class Transaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    date = db.Column(db.Date, default=date.today, nullable=False)
+    type = db.Column(db.String(10), nullable=False)  # 'Income' or 'Expense'
+    category = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(200))
+    amount = db.Column(db.Float, nullable=False)
+    payment_method = db.Column(db.String(50))
+    receipt = db.Column(db.String(200))  # optional file path
+
+    # NEW fields for recurring transactions
+    is_recurring = db.Column(db.Boolean, default=False)
+    recurring_interval = db.Column(db.String(20))  # e.g., 'weekly', 'monthly', 'yearly'
+    next_occurrence = db.Column(db.Date)  # optional, next due date
+
+class Inventory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(50), nullable=True)
+    quantity = db.Column(db.Integer, default=0)
+    price = db.Column(db.Float, default=0.0)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Withdrawal(db.Model):
+    __tablename__ = "withdrawals"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    bank_id = db.Column(db.Integer, db.ForeignKey("bank_details.id"), nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    status = db.Column(db.String(20), default="pending")  # pending/approved/rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    requested_at = db.Column(db.DateTime, default=db.func.now())
+    # Relationships
+    user = db.relationship("User", backref="withdrawals")
+    bank = db.relationship("BankDetails", backref="withdrawals", foreign_keys=[bank_id])

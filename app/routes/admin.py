@@ -8,12 +8,13 @@ from app.forms import RegistrationForm
 from app.extensions import db
 from app.models import (User, Product,
                         WalletTransaction,AdminWalletTransaction,BookingRequest,Wallet,
-                        AdminRevenue,BankDetails, Setting,ChatMessage,
-                        Subscription, Escrow, Payment,EscrowPayment,ProfitHistory,AgentKYC, PlatformWallet,PromotionPayment)
+                        AdminRevenue,VerificationDocument, Setting,ChatMessage,
+                        Subscription, Escrow, Payment,Withdrawal,EscrowPayment, BankDetails,ProfitHistory,AgentKYC, PlatformWallet,PromotionPayment)
 from werkzeug.security import generate_password_hash
 from flask_socketio import emit
 from app.utils.paystack import create_transfer_recipient,initiate_paystack_transfer
 import secrets
+from app.utils.paystack import initialize_transaction
 
 
 
@@ -83,26 +84,35 @@ def flagged_products():
 # 👥 User Management
 @admin_bp.route("/manage-users")
 def manage_users():
-    q = request.args.get("q", "").strip()
-    role = request.args.get("role", "").strip()
+    # Get query parameters
+    search_query = request.args.get("q", "").strip()
+    role_filter = request.args.get("role", "").strip()
+    page = request.args.get("page", 1, type=int)
 
+    # Base query
     query = User.query
 
-    if q:
+    # Apply search
+    if search_query:
         query = query.filter(
             or_(
-                User.first_name.ilike(f"%{q}%"),
-                User.last_name.ilike(f"%{q}%"),
-                User.email.ilike(f"%{q}%")
+                User.first_name.ilike(f"%{search_query}%"),
+                User.last_name.ilike(f"%{search_query}%"),
+                User.email.ilike(f"%{search_query}%")
             )
         )
-    if role:
-        query = query.filter_by(role=role)
 
-    page = request.args.get("page", 1, type=int)
-    users = query.order_by(User.created_at.desc()).paginate(page=page, per_page=10)
+    # Apply role filter
+    if role_filter:
+        query = query.filter_by(role=role_filter)
 
-    return render_template("admin/manage_users.html", users=users)
+    # Order by newest users first and paginate
+    users_pagination = query.order_by(User.created_at.desc()).paginate(page=page, per_page=10)
+
+    return render_template(
+        "admin/manage_users.html",
+        users=users_pagination
+    )
 
 
 @admin_bp.route('/toggle-user-verified/<int:user_id>', methods=['POST'])
@@ -837,3 +847,116 @@ def list_kyc():
     """Display all agent KYC requests."""
     kycs = AgentKYC.query.order_by(AgentKYC.created_at.desc()).all()
     return render_template("admin/adminkyc.html", kycs=kycs)
+
+# Menu Link: Seller KYC List
+@admin_bp.route("/seller-kyc-list")
+@login_required
+def seller_kyc_list():
+    # Fetch all seller KYC documents, grouped by user
+    kycs = VerificationDocument.query.join(User).filter(User.role == 'seller').order_by(VerificationDocument.id.desc()).all()
+    return render_template("admin/seller_kyc_list.html", kycs=kycs)
+
+
+# View Individual Seller KYC
+@admin_bp.route("/seller-kyc/<int:user_id>")
+@login_required
+def view_seller_kyc(user_id):
+    seller = User.query.get_or_404(user_id)
+    documents = VerificationDocument.query.filter_by(user_id=user_id).all()
+    return render_template("admin/seller_kyc_detail.html", seller=seller, documents=documents)
+
+
+# Approve or Reject a Seller KYC
+@admin_bp.route("/seller-kyc/<int:user_id>/action/<string:action>", methods=["POST"])
+@login_required
+def seller_kyc_action(user_id, action):
+    seller = User.query.get_or_404(user_id)
+    kycs = VerificationDocument.query.filter_by(user_id=user_id).all()
+
+    if action not in ["approve", "reject"]:
+        flash("Invalid action", "danger")
+        return redirect(url_for("admin.view_seller_kyc", user_id=user_id))
+
+    for kyc in kycs:
+        kyc.status = "approved" if action == "approve" else "rejected"
+    db.session.commit()
+
+    flash(f"Seller KYC {action}d successfully.", "success")
+    return redirect(url_for("admin.seller_kyc_list"))
+
+# List all pending withdrawals
+@admin_bp.route("/withdrawals")
+@login_required
+def list_withdrawals():
+    pending_withdrawals = Withdrawal.query.filter_by(status="pending").order_by(Withdrawal.requested_at.desc()).all()
+    return render_template("admin/withdrawals.html", withdrawals=pending_withdrawals)
+
+# Approve a withdrawal
+from app.utils.paystack import create_transfer_recipient, initiate_paystack_transfer
+
+@admin_bp.route("/withdrawals/approve/<int:withdrawal_id>")
+@login_required
+def approve_withdrawal(withdrawal_id):
+    withdrawal = Withdrawal.query.get_or_404(withdrawal_id)
+    if withdrawal.status != "pending":
+        flash("Withdrawal already processed.", "warning")
+        return redirect(url_for("admin.list_withdrawals"))
+
+    # Get bank details
+    bank = withdrawal.bank
+    if not bank:
+        flash("Bank account not found.", "danger")
+        return redirect(url_for("admin.list_withdrawals"))
+
+    # Create transfer recipient in Paystack
+    recipient_data = create_transfer_recipient(
+        name=bank.account_name,
+        account_number=bank.account_number,
+        bank_code=bank.bank_code
+    )
+
+    if not recipient_data:
+        flash("Failed to create Paystack recipient.", "danger")
+        return redirect(url_for("admin.list_withdrawals"))
+
+    recipient_code = recipient_data["recipient_code"]
+
+    # ✅ Corrected function call
+    transfer_result = initiate_paystack_transfer(
+        int(withdrawal.amount * 100),  # amount in kobo
+        recipient_code,
+        reason="Withdrawal Payout"
+    )
+
+    if transfer_result.get("status"):
+        withdrawal.status = "approved"
+        withdrawal.processed_at = datetime.utcnow()
+        db.session.commit()
+        flash(f"Withdrawal of ₦{withdrawal.amount:,.2f} approved and processed.", "success")
+    else:
+        flash("Transfer failed: " + transfer_result.get("message", "Unknown error"), "danger")
+
+    return redirect(url_for("admin.list_withdrawals"))
+
+
+
+# Reject a withdrawal
+@admin_bp.route("/withdrawals/reject/<int:withdrawal_id>")
+@login_required
+def reject_withdrawal(withdrawal_id):
+    withdrawal = Withdrawal.query.get_or_404(withdrawal_id)
+    if withdrawal.status != "pending":
+        flash("Withdrawal already processed.", "warning")
+        return redirect(url_for("admin.list_withdrawals"))
+
+    # Refund amount to wallet
+    wallet = Wallet.query.filter_by(user_id=withdrawal.user_id).first()
+    if wallet:
+        wallet.balance += withdrawal.amount
+
+    withdrawal.status = "rejected"
+    withdrawal.processed_at = datetime.utcnow()
+    db.session.commit()
+    flash(f"Withdrawal of ₦{withdrawal.amount:,.2f} rejected and refunded.", "info")
+
+    return redirect(url_for("admin.list_withdrawals"))
