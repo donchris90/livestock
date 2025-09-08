@@ -6,6 +6,7 @@ from datetime import  datetime, timedelta
 from app.utils.email_utils import send_email,mail
 from werkzeug.utils import secure_filename
 from app.utils.payout_utils import get_or_create_wallet
+from app.extensions import db, mail, socketio
 from app.forms import WithdrawalForm
 from decimal import Decimal
 from app import db
@@ -241,49 +242,116 @@ def contact():
     return render_template('support/contact.html')
 
 
-@logistics_bp.route('/notifications')
+# 📌 View notifications
+@logistics_bp.route("/notifications")
 @login_required
 def logistics_notifications():
-    # ✅ Query the real DB notifications for the logged-in user
-    notifications = Notification.query.filter_by(user_id=current_user.id) \
-        .order_by(Notification.timestamp.desc()) \
-        .all()
+    if current_user.role != "logistics":
+        flash("Access denied.", "danger")
+        return redirect(url_for("logistics.logistics_dashboard"))
 
-    return render_template('notifications.html', notifications=notifications)
+    notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.timestamp.desc()).all()
+    unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+
+    return render_template(
+        "notifications.html",
+        notifications=notifications,
+        unread_count=unread_count
+    )
+
+
+# 📌 Mark all notifications as read
+@logistics_bp.route("/notifications/mark-read", methods=["POST"])
+@login_required
+def mark_notifications_read():
+    if current_user.role != "logistics":
+        abort(403)
+
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({"is_read": True})
+    db.session.commit()
+
+    if request.is_json:
+        return {"success": True}
+
+    flash("All notifications marked as read", "success")
+    return redirect(url_for("logistics.logistics_notifications"))
+
 
 
 # This should be in logistics_bp or the blueprint handling logistics booking
 
-@logistics_bp.route('/book-logistics/<int:logistics_id>/<int:product_id>', methods=['POST'])
+from flask import flash, redirect, url_for, request, render_template
+from flask_login import login_required, current_user
+from datetime import datetime
+from app import db, socketio
+from app.models import LogisticsBooking, Notification, User
+
+from flask_socketio import emit, join_room
+from app import socketio
+
+@logistics_bp.route('/book-logistics/<int:logistics_id>/<int:product_id>', methods=['GET', 'POST'])
 @login_required
 def book_logistics(logistics_id, product_id):
+    logistics_user = User.query.get_or_404(logistics_id)
+    product = Product.query.get_or_404(product_id)
+
     if request.method == 'POST':
         data = request.form
+        sender_name = data.get('sender_name')
         pickup_address = data.get('pickup_address')
         delivery_address = data.get('delivery_address')
-        distance_km = data.get('distance_km')
-        estimated_cost = data.get('estimated_cost')
+        booking_date = data.get('date')
+        message = data.get('message')
 
+        # Save booking
         booking = LogisticsBooking(
             requester_id=current_user.id,
             buyer_id=current_user.id,
             logistics_id=logistics_id,
             product_id=product_id,
+            sender_name=sender_name,
             pickup_address=pickup_address,
             delivery_address=delivery_address,
-            distance_km=distance_km,
-            estimated_cost=estimated_cost,
+            distance_km=data.get("distance_km"),
+            estimated_cost=data.get("estimated_cost"),
             status='pending',
             created_at=datetime.utcnow()
         )
         db.session.add(booking)
         db.session.commit()
 
-        flash("Booking request submitted successfully", "success")
-        return redirect(url_for('seller_dashboard.my_dashboard'))  # or any appropriate redirect
+        # Create notification for logistics provider
+        notif = Notification(
+            user_id=logistics_id,
+            title="New Booking Request",
+            message=f"You have a new booking request for {product.title}.",
+            link=url_for('logistics.view_driver_bookings', _external=True),
+            is_read=False,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(notif)
+        db.session.commit()
 
-    # GET request fallback
-    return render_template('logistics/book_logistics_form.html', product_id=product_id, logistics_id=logistics_id)
+        # Emit real-time notification to the logistics provider's room
+        socketio.emit(
+            'new_logistics_notification',
+            {
+                'title': notif.title,
+                'message': notif.message,
+                'link': notif.link
+            },
+            room=f'user_{logistics_id}'  # ← This matches the client-side room
+        )
+
+        flash("Booking request submitted successfully!", "success")
+        return redirect(url_for('seller_dashboard.my_dashboard'))
+
+    return render_template(
+        'book_logistics.html',
+        logistics_user=logistics_user,
+        product=product
+    )
+
 
 
 
@@ -774,3 +842,4 @@ def logistics_withdraw():
         wallet=wallet,
         bank_accounts=bank_accounts
     )
+

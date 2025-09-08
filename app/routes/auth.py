@@ -119,20 +119,20 @@ def register():
 
         text_body = f"""Hi {new_user.first_name},
 
-Welcome to the Livestock Farm App!
+Welcome to the Afrik Livestock !
 
 You can now explore products, book agents, chat with providers, and more.
 
-Visit: https://your-app-url.com
+Visit: https://www.afriklivestock.com
 
-- Livestock Farm App Team
+- Afrik Livestock Team
 """
 
         html_body = render_template('email/welcome_email.html', name=new_user.first_name)
 
         send_email(
             to=new_user.email,
-            subject="🎉 Welcome to Livestock Farm App!",
+            subject="🎉 Welcome to Afrik Livestock !",
             body=text_body,
             html=html_body
         )

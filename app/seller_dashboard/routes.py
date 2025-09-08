@@ -3586,3 +3586,61 @@ def logistics_setup_payout():
 
     return render_template("logistics/logistics_payout.html", form=form, banks=banks)
 
+from datetime import datetime, time
+
+# Agent booking
+# Agent booking
+@seller_dashboard_bp.route("/agents/book-agent/<int:user_id>/<int:product_id>", methods=["GET", "POST"])
+@login_required
+def book_agent_page(user_id, product_id):
+    user = User.query.get_or_404(user_id)
+    product = Product.query.get_or_404(product_id)
+
+    if request.method == "POST":
+        date = request.form.get("date")
+        message = request.form.get("message")
+
+        booking = BookingRequest(
+            buyer_id=current_user.id,
+            agent_id=user.id,
+            product_id=product.id,
+            date=date,
+            message=message,
+            booking_time=datetime.utcnow()
+        )
+        db.session.add(booking)
+        db.session.commit()
+        flash("Agent booking request submitted!", "success")
+        return redirect(url_for("seller_dashboard.dashboard"))
+
+    return render_template("book_agent.html", user=user, product=product)
+
+
+# Logistics booking
+@seller_dashboard_bp.route("/logistics/book-logistics/<int:user_id>/<int:product_id>", methods=["GET", "POST"])
+@login_required
+def book_logistics_page(user_id, product_id):
+    user = User.query.get_or_404(user_id)
+    product = Product.query.get_or_404(product_id)
+
+    if request.method == "POST":
+        sender_name = request.form.get("sender_name")
+        pickup_address = request.form.get("pickup_address")
+        delivery_address = request.form.get("delivery_address")
+        date = request.form.get("date")
+        message = request.form.get("message")
+
+        booking = BookingRequest(
+            buyer_id=current_user.id,
+            agent_id=user.id if user.role=='agent' else None,
+            product_id=product.id,
+            date=date,
+            message=message,
+            booking_time=datetime.utcnow()
+        )
+        db.session.add(booking)
+        db.session.commit()
+        flash("Logistics booking request submitted!", "success")
+        return redirect(url_for("seller_dashboard.dashboard"))
+
+    return render_template("book_logistics.html", user=user, product=product)

@@ -776,6 +776,9 @@ class Notification(db.Model):
     notification_type = db.Column(db.String, nullable=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    title = db.Column(db.String(255))
+    link = db.Column(db.String(255))
+
 
     message = db.Column(db.Text)
     type = db.Column(db.String(50))
@@ -983,6 +986,7 @@ class LogisticsProfile(db.Model):
     available = db.Column(db.Boolean, default=True)
     phone = db.Column(db.String(20))
     whatsapp = db.Column(db.String(20))
+    sender_name = db.Column(db.String(100))  # add this
     user = db.relationship("User", back_populates="logistics_profile")
 
 
@@ -1002,7 +1006,7 @@ class LogisticsBooking(db.Model):
     delivery_address = db.Column(db.String)
     distance_km = db.Column(db.Float)
     estimated_cost = db.Column(db.Float)
-
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # 🚀 Add this field
     payment_method = db.Column(
         Enum('escrow', 'direct', name='logistics_payment_enum'),
@@ -1016,7 +1020,7 @@ class LogisticsBooking(db.Model):
     )
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    sender_name = db.Column(db.String(100))  # add this
     logistics = db.relationship('User', foreign_keys=[logistics_id], backref='logistics_bookings')
     buyer = db.relationship('User', foreign_keys=[buyer_id])
     product = db.relationship('Product')

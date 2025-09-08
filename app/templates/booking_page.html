@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-5">
+  <h3>Book {{ user.name }} for "{{ product.title }}"</h3>
+  <form method="POST">
+    {% if role == 'logistics' %}
+    <div class="mb-3">
+      <label class="form-label">Sender Name</label>
+      <input type="text" name="sender_name" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Pickup Address</label>
+      <input type="text" name="pickup_address" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Delivery Address</label>
+      <input type="text" name="delivery_address" class="form-control" required>
+    </div>
+    {% endif %}
+    
+    <div class="mb-3">
+      <label class="form-label">Booking Date</label>
+      <input type="date" name="date" class="form-control" required>
+    </div>
+    
+    <div class="mb-3">
+      <label class="form-label">Booking Time</label>
+      <input type="time" name="time" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Message / Note</label>
+      <textarea name="message" class="form-control" rows="3"></textarea>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Confirm Booking</button>
+    <a href="{{ url_for('seller_dashboard.dashboard') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}
