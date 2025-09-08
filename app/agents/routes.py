@@ -6,6 +6,7 @@ from app.routes.utils import create_notification,mail
 from app.models import EscrowPayment,WalletTransaction,AgentKYC
 from app.utils.payout_utils import get_or_create_wallet
 from app.forms import FeedbackForm,DocumentUploadForm
+from werkzeug.utils import secure_filename
 import os
 from flask import request, redirect, url_for, flash
 from app.forms import WithdrawalForm
@@ -33,6 +34,18 @@ from sqlalchemy import func
 from flask import Blueprint, request, jsonify
 from math import radians, cos, sin, asin, sqrt
 from app.models import User
+
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+cloudinary.config(
+    cloud_name="dkkt6i6qj",
+    api_key="994636425614997",
+    api_secret="gcgkNmK-2oSkLDLkZPRX6hdEoEE",  # replace with your actual secret
+    secure=True
+)
+
 
 agents_bp = Blueprint('agents', __name__, url_prefix='/agents')
 
@@ -181,6 +194,8 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+import cloudinary.uploader
+
 @agents_bp.route('/edit-profile', methods=["GET", "POST"])
 @login_required
 def edit_profile():
@@ -192,7 +207,7 @@ def edit_profile():
             current_user.phone = request.form.get("phone") or current_user.phone
             current_user.about = request.form.get("about") or current_user.about
 
-            # Handle profile photo
+            # Handle profile photo upload via Cloudinary
             if "profile_photo" in request.files:
                 file = request.files["profile_photo"]
                 if file and file.filename.strip():
@@ -200,16 +215,17 @@ def edit_profile():
                         flash("❌ Invalid file type. Allowed: png, jpg, jpeg, gif.", "danger")
                         return redirect(url_for("agents.edit_profile"))
 
-                    # Ensure upload folder exists
-                    upload_folder = os.path.join(current_app.root_path, "static/uploads/profile_photos")
-                    os.makedirs(upload_folder, exist_ok=True)
+                    # Upload to Cloudinary
+                    upload_result = cloudinary.uploader.upload(
+                        file,
+                        folder="agent_profiles",
+                        public_id=f"user_{current_user.id}_{uuid.uuid4().hex}",
+                        overwrite=True,
+                        resource_type="image"
+                    )
 
-                    filename = secure_filename(file.filename)
-                    file_path = os.path.join(upload_folder, filename)
-                    file.save(file_path)
-
-                    # Save relative path in DB
-                    current_user.profile_photo = f"uploads/profile_photos/{filename}"
+                    # Save the secure URL in the DB
+                    current_user.profile_photo = upload_result.get("secure_url")
 
             db.session.commit()
             flash("✅ Profile updated successfully!", "success")
@@ -221,7 +237,6 @@ def edit_profile():
             return redirect(url_for("agents.edit_profile"))
 
     return render_template("agents/edit_profile.html", user=current_user)
-
 
 from sqlalchemy.orm import joinedload
 @agents_bp.route('/profile/<int:agent_id>')
@@ -506,6 +521,9 @@ def update_booking_status(booking_id):
 
 
 
+import cloudinary.uploader
+import uuid
+
 @agents_bp.route('/booking/<int:booking_id>/report-outcome', methods=['GET', 'POST'])
 @login_required
 def report_booking_outcome(booking_id):
@@ -524,22 +542,32 @@ def report_booking_outcome(booking_id):
             return redirect(request.referrer)
 
         photos = request.files.getlist('photos')
-        photo_filenames = booking.inspection_photos or []
+        photo_urls = booking.inspection_photos or []
 
         for photo in photos:
-            if photo and photo.filename != '':
-                filename = secure_filename(photo.filename)
-                photo_path = os.path.join(current_app.root_path, 'static/uploads/inspection_files', filename)
-                photo.save(photo_path)
-                photo_filenames.append(filename)
+            if photo and photo.filename.strip():
+                if not allowed_file(photo.filename):
+                    flash("❌ Invalid file type for inspection photo.", "danger")
+                    return redirect(request.referrer)
+
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    photo,
+                    folder="inspection_photos",
+                    public_id=f"booking_{booking.id}_{uuid.uuid4().hex}",
+                    overwrite=True,
+                    resource_type="image"
+                )
+                photo_urls.append(upload_result.get("secure_url"))
 
         booking.inspection_outcome = outcome
         booking.inspection_report = report
         booking.inspection_reported_at = datetime.utcnow()
-        booking.inspection_photos = photo_filenames
+        booking.inspection_photos = photo_urls
 
         db.session.commit()
 
+        # Send notification email to buyer
         if booking.buyer and booking.buyer.email:
             send_email(
                 to=booking.buyer.email,
@@ -555,7 +583,7 @@ Agent {current_user.first_name} has submitted an inspection outcome for your rec
 You can log in to view attached files.
 
 Thank you,
-Livestock Farm App
+Afrik Livestock 
 """
             )
 
@@ -563,7 +591,6 @@ Livestock Farm App
         return redirect(url_for('agents.agent_bookings', filter='past'))
 
     return render_template('agents/report_outcome.html', booking=booking)
-
 
 UPLOAD_FOLDER = 'static/uploads/inspection_photos'
 
@@ -873,13 +900,9 @@ def nearby_users():
 
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "app", "static", "uploads")
 
-@agents_bp.before_app_request
-def setup_upload_folder():
-    current_app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-    os.makedirs(current_app.config["UPLOAD_FOLDER"], exist_ok=True)
+import cloudinary.uploader
+import uuid
 
-# app/agents/routes.py
-# app/agents/routes.py
 @agents_bp.route('/upload-documents', methods=['GET', 'POST'])
 @login_required
 def upload_documents():
@@ -895,15 +918,27 @@ def upload_documents():
 
         saved_files = []
         for file in files:
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
-                saved_files.append(filename)
+            if file and file.filename.strip():
+                if not allowed_file(file.filename):
+                    flash("❌ Invalid file type. Allowed: png, jpg, jpeg, gif, pdf.", "danger")
+                    return redirect(request.url)
+
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    folder="agent_documents",
+                    public_id=f"agent_{current_user.id}_{uuid.uuid4().hex}",
+                    overwrite=True,
+                    resource_type="auto"  # supports images & pdfs
+                )
+                saved_files.append(upload_result.get("secure_url"))
 
         flash("Documents uploaded successfully!", "success")
+        # Optionally, save `saved_files` to user model if needed
         return redirect(url_for("agents.upload_documents"))
 
     return render_template("upload_documents.html")
+
 
 @agents_bp.route('/delete-document/<int:index>', methods=['POST'])
 @login_required
@@ -911,10 +946,10 @@ def delete_document(index):
     documents = current_user.documents or []
     if 0 <= index < len(documents):
         try:
-            # Delete file from disk
-            filepath = documents.pop(index)
-            if os.path.exists(filepath):
-                os.remove(filepath)
+            # Cloudinary deletion
+            url_to_delete = documents.pop(index)
+            public_id = url_to_delete.rsplit("/", 1)[-1].split(".")[0]
+            cloudinary.uploader.destroy(f"agent_documents/{public_id}", resource_type="auto")
 
             current_user.documents = documents
             db.session.commit()
@@ -928,8 +963,8 @@ def delete_document(index):
     return redirect(url_for('agents.upload_documents'))
 
 
-@login_required
 @agents_bp.route('/kyc', methods=['GET', 'POST'])
+@login_required
 def kyc():
     if request.method == 'POST':
         full_name = request.form.get('full_name')
@@ -941,19 +976,22 @@ def kyc():
             flash('Please fill in all required fields.', 'danger')
             return redirect(url_for('agents.kyc'))
 
-        upload_folder = current_app.config.get('UPLOAD_FOLDER')
-        if not upload_folder:
-            flash('Upload folder is not configured.', 'danger')
-            return redirect(url_for('agents.kyc'))
-
-        document_paths = []
+        document_urls = []
         for file in files:
-            if file.filename:
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(upload_folder, filename)
-                file.save(filepath)
-                # Save relative path to DB
-                document_paths.append(os.path.join('app', 'static', 'uploads', filename))
+            if file and file.filename.strip():
+                if not allowed_file(file.filename):
+                    flash("❌ Invalid file type. Allowed: png, jpg, jpeg, gif, pdf.", "danger")
+                    return redirect(request.url)
+
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    folder="agent_kyc",
+                    public_id=f"kyc_{current_user.id}_{uuid.uuid4().hex}",
+                    overwrite=True,
+                    resource_type="auto"
+                )
+                document_urls.append(upload_result.get("secure_url"))
 
         # Save KYC to DB
         kyc = AgentKYC(
@@ -961,7 +999,7 @@ def kyc():
             full_name=full_name,
             address=address,
             document_type=document_type,
-            document_images=document_paths,
+            document_images=document_urls,
             status='pending'
         )
         db.session.add(kyc)
@@ -970,7 +1008,6 @@ def kyc():
         return redirect(url_for('agents.agent_dashboard'))
 
     return render_template('agents/kyc.html')
-
 
 def serialize_user(user):
     return {

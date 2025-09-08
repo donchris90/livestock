@@ -3,17 +3,17 @@
 {% block content %}
 <div class="container mt-4">
   <!-- Agent Info Card -->
-  <div class="card shadow-sm p-4 mb-4">
-    <div class="d-flex align-items-center gap-3">
-      {% if agent.profile_photo %}
-  <img src="{{ url_for('static', filename=agent.profile_photo) }}"
-       class="img-thumbnail rounded-circle"
-       style="width:120px; height:120px; object-fit:cover;">
-{% else %}
-  <img src="{{ url_for('static', filename='default_profile.png') }}"
-       class="img-thumbnail rounded-circle"
-       style="width:120px; height:120px; object-fit:cover;">
-{% endif %}
+<div class="card shadow-sm p-4 mb-4">
+  <div class="d-flex align-items-center gap-3">
+    {% if agent.profile_photo %}
+      <img src="{{ agent.profile_photo }}"
+           class="img-thumbnail rounded-circle"
+           style="width:120px; height:120px; object-fit:cover;">
+    {% else %}
+      <img src="{{ url_for('static', filename='default_profile.png') }}"
+           class="img-thumbnail rounded-circle"
+           style="width:120px; height:120px; object-fit:cover;">
+    {% endif %}
 
 
       <div>

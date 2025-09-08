@@ -340,14 +340,15 @@ footer .bottom-bar {
           <span class="badge bg-warning text-dark position-absolute top-0 start-0 m-2">Top</span>
         {% endif %}
 
-        <!-- Image -->
-        <a href="{{ url_for('seller_dashboard.product_detail', product_id=p.id) }}">
-          {% set photo = 'default.jpg' %}
-          {% if p.photos and p.photos[0] %}
-            {% set photo = p.photos[0].split('uploads/')[-1] %}
-          {% endif %}
-          <img src="{{ url_for('static', filename='uploads/' ~ photo) }}" class="card-img-top" alt="{{ p.title }}">
-        </a>
+       <!-- Image -->
+<a href="{{ url_for('seller_dashboard.product_detail', product_id=p.id) }}">
+  {% set photo = url_for('static', filename='images/default.jpg') %}  {# fallback #}
+  {% if p.photos and p.photos[0] %}
+    {% set photo = p.photos[0] %}  {# first Cloudinary URL #}
+  {% endif %}
+  <img src="{{ photo }}" class="card-img-top" alt="{{ p.title }}">
+</a>
+
 
         <!-- Info -->
         <div class="card-body d-flex flex-column">

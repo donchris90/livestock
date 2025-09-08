@@ -17,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.routes.utils import generate_reference
 from decimal import Decimal
 from app.extensions import db, mail, socketio
+from werkzeug.utils import secure_filename
 from flask_mail import Message
 from app.models import BookingRequest, User,Product
 #from app.utils import send_async_emailagent, subscription_utilis
@@ -54,6 +55,16 @@ from app.utils.subscription_utils import handle_booking_payment
 from app.models import Subscription
 import requests
 from app.utils.promotion import get_price_for_promo
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+cloudinary.config(
+    cloud_name="dkkt6i6qj",
+    api_key="994636425614997",
+    api_secret="gcgkNmK-2oSkLDLkZPRX6hdEoEE",  # replace with your actual secret
+    secure=True
+)
 
 
 # app/seller_dashboard/routes.py or similar
@@ -257,31 +268,19 @@ def inject_now():
 @seller_dashboard_bp.route('/upload_product', methods=['GET', 'POST'])
 @login_required
 def upload_product():
-    # ✅ Reload the latest user data from DB
     user = User.query.get(current_user.id)
 
-    # ✅ Define plan limits
-    plan_limits = {
-        'Free': 2,
-        'Starter': 5,
-        'Pro': 10,
-        'Premium': 100
-    }
-
+    # Plan limits
+    plan_limits = {'Free': 2, 'Starter': 5, 'Pro': 10, 'Premium': 100}
     plan_name = (user.plan_name or 'Free').capitalize()
     upload_limit = plan_limits.get(plan_name, 2)
 
-    # ✅ Count products
     uploaded_count = Product.query.filter_by(user_id=user.id, is_deleted=False).count()
-
     if uploaded_count >= upload_limit:
         flash(f"Upload limit reached ({upload_limit}) for your {plan_name} plan. Please upgrade.", "danger")
         return redirect(url_for('seller_dashboard.upgrade_plan'))
 
-    # ✅ If within limit, handle form
-
     if request.method == 'POST':
-        # Get form fields
         title = request.form.get('title', '').strip()
         category = request.form.get('category', '').strip()
         type_ = request.form.get('type', '').strip()
@@ -291,19 +290,16 @@ def upload_product():
         open_to_negotiation_raw = request.form.get('open_to_negotiation')
         images = request.files.getlist('images')
 
-        # Normalize open_to_negotiation to enum strings: 'yes', 'no', 'not sure'
+        # Open to negotiation normalization
+        open_to_negotiation = 'not sure'
         if open_to_negotiation_raw:
             val = open_to_negotiation_raw.lower()
             if val in ['true', 'yes', '1', 'on']:
                 open_to_negotiation = 'yes'
             elif val in ['false', 'no', '0', 'off']:
                 open_to_negotiation = 'no'
-            else:
-                open_to_negotiation = 'not sure'
-        else:
-            open_to_negotiation = 'not sure'
 
-        # Validate quantity and price
+        # Quantity & price validation
         try:
             quantity = int(request.form.get('quantity', '0'))
             price = float(request.form.get('price', '0'))
@@ -311,7 +307,6 @@ def upload_product():
             flash("❌ Quantity and Price must be valid numbers.", "danger")
             return redirect(url_for('seller_dashboard.upload_product'))
 
-        # Validate required fields
         if not all([title, category, type_, state, city, description]) or quantity <= 0 or price <= 0:
             flash("❌ All fields are required and quantity/price must be greater than zero.", "danger")
             return redirect(url_for('seller_dashboard.upload_product'))
@@ -320,18 +315,18 @@ def upload_product():
             flash("📸 Please upload at least 3 product images.", "warning")
             return redirect(url_for('seller_dashboard.upload_product'))
 
-        # Image upload folder
-        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
-        os.makedirs(upload_folder, exist_ok=True)
-
-        image_paths = []
-        for image in images[:5]:  # Limit max 5 images
+        # Upload images to Cloudinary
+        image_urls = []
+        for image in images[:5]:  # limit max 5 images
             if image and allowed_file(image.filename):
-                filename = secure_filename(image.filename)
-                unique_name = f"{uuid.uuid4()}_{filename}"
-                save_path = os.path.join(upload_folder, unique_name)
-                image.save(save_path)
-                image_paths.append(f'uploads/{unique_name}')
+                upload_result = cloudinary.uploader.upload(
+                    image,
+                    folder=f"products/{user.id}",  # optional: organize by user
+                    use_filename=True,
+                    unique_filename=True,
+                    overwrite=False
+                )
+                image_urls.append(upload_result["secure_url"])
             else:
                 flash("❌ Only jpg, png, gif, webp files are allowed.", "danger")
                 return redirect(url_for('seller_dashboard.upload_product'))
@@ -340,7 +335,7 @@ def upload_product():
         is_featured = plan_name in ['Pro', 'Premium']
         boost_score = {'Free': 0, 'Starter': 1, 'Pro': 5, 'Premium': 10}.get(plan_name, 0)
 
-        # Save product to database
+        # Save product to DB
         product = Product(
             user_id=user.id,
             title=title,
@@ -355,7 +350,7 @@ def upload_product():
             price=price,
             open_to_negotiation=open_to_negotiation,
             phone_display=user.phone,
-            photos=image_paths,
+            photos=image_urls,  # store Cloudinary URLs
             is_featured=is_featured,
             boost_score=boost_score
         )
@@ -368,7 +363,7 @@ def upload_product():
     return render_template('upload_product.html', user=user)
 
 
-
+import cloudinary.uploader
 
 @seller_dashboard_bp.route('/edit-product/<int:product_id>', methods=['GET', 'POST'])
 @login_required
@@ -380,6 +375,7 @@ def edit_product(product_id):
         return redirect(url_for('seller_dashboard.my_dashboard'))
 
     if request.method == 'POST':
+        # Update basic fields
         product.title = request.form.get('title')
         product.type = request.form.get('type')
         product.state = request.form.get('state')
@@ -389,23 +385,31 @@ def edit_product(product_id):
         product.category = request.form.get('category')
         product.open_to_negotiation = request.form.get('open_to_negotiation')
 
+        # Handle photo uploads
         photos = request.files.getlist('photos')
-        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
-        os.makedirs(upload_folder, exist_ok=True)
         if product.photos is None:
             product.photos = []
 
         for file in photos:
             if file and allowed_file(file.filename):
-                filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-                filepath = os.path.join(upload_folder, filename)
-                file.save(filepath)
-                rel_path = f"uploads/{filename}"
-                if rel_path not in product.photos:
-                    product.photos.append(rel_path)
+                # Upload to Cloudinary
+                try:
+                    upload_result = cloudinary.uploader.upload(
+                        file,
+                        folder=f"products/{current_user.id}",
+                        use_filename=True,
+                        unique_filename=True,
+                        overwrite=False
+                    )
+                    secure_url = upload_result['secure_url']
+                    if secure_url not in product.photos:
+                        product.photos.append(secure_url)
+                except Exception as e:
+                    print("Cloudinary upload failed:", e)
+                    flash("Some images failed to upload.", "warning")
 
         db.session.commit()
-        flash("Product updated.", "success")
+        flash("✅ Product updated successfully.", "success")
         return redirect(url_for('seller_dashboard.my_dashboard'))
 
     return render_template('edit_product.html', product=product, getattr=getattr, now=datetime.utcnow())
@@ -525,6 +529,8 @@ def search_agents_api():
     return jsonify(filtered)
 
 
+import cloudinary.uploader
+
 @seller_dashboard_bp.route('/edit-profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
@@ -535,20 +541,26 @@ def edit_profile():
             if val is not None:
                 setattr(current_user, field, val.strip())
 
-        # Profile photo upload
+        # Profile photo upload via Cloudinary
         photo = request.files.get('profile_photo')
         if photo and photo.filename:
-            filename = secure_filename(photo.filename)
-            folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profiles')
-            os.makedirs(folder, exist_ok=True)
-            filepath = os.path.join(folder, filename)
-            photo.save(filepath)
-            current_user.profile_photo = f'/static/uploads/profiles/{filename}'
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    photo,
+                    folder=f"profiles/{current_user.id}",
+                    use_filename=True,
+                    unique_filename=True,
+                    overwrite=True
+                )
+                current_user.profile_photo = upload_result['secure_url']
+            except Exception as e:
+                print("Cloudinary upload failed:", e)
+                flash("Profile photo upload failed.", "warning")
 
         try:
-            db.session.add(current_user)  # ⬅️ Force SQLAlchemy to track update
+            db.session.add(current_user)
             db.session.commit()
-            flash('Profile updated successfully!', 'success')
+            flash('✅ Profile updated successfully!', 'success')
         except Exception as e:
             db.session.rollback()
             flash('Error updating profile: ' + str(e), 'danger')
@@ -694,6 +706,8 @@ def report_product(product_id):
     return redirect(url_for('seller_dashboard.product_detail', product_id=product_id))
 
 
+import cloudinary.uploader
+
 @seller_dashboard_bp.route('/delete-photo/<int:product_id>/<path:photo_path>', methods=['POST'])
 @login_required
 def delete_photo(product_id, photo_path):
@@ -703,22 +717,28 @@ def delete_photo(product_id, photo_path):
         flash("Unauthorized attempt.", "danger")
         return redirect(url_for('seller_dashboard.my_dashboard'))
 
-    # Remove photo from the list
-    photo_to_delete = photo_path.replace("..", "")  # Prevent directory traversal
+    # Prevent directory traversal
+    photo_to_delete = photo_path.replace("..", "")
+
     if photo_to_delete in product.photos:
         product.photos.remove(photo_to_delete)
 
-        # Delete the actual file from disk
-        full_path = os.path.join(current_app.root_path, 'static', photo_to_delete)
-        if os.path.exists(full_path):
-            os.remove(full_path)
+        # Delete from Cloudinary
+        try:
+            # Extract public_id from URL
+            public_id = photo_to_delete.split("/")[-1].rsplit(".", 1)[0]  # Remove extension
+            cloudinary.uploader.destroy(public_id, invalidate=True)
+        except Exception as e:
+            print("Cloudinary delete failed:", e)
+            flash("⚠ Could not delete image from Cloud storage.", "warning")
 
         db.session.commit()
-        flash("Photo deleted.", "info")
+        flash("✅ Photo deleted.", "info")
     else:
         flash("Photo not found.", "warning")
 
     return redirect(url_for('seller_dashboard.edit_product', product_id=product.id))
+
 
 @seller_dashboard_bp.route('/book-agent/<int:agent_id>/<int:product_id>', methods=['GET', 'POST'])
 @login_required
@@ -1166,7 +1186,7 @@ from datetime import datetime, timedelta
 @seller_dashboard_bp.route('/confirm-inspections')
 @login_required
 def confirm_inspections():
-    print("[DEBUG] Logged-in user ID:", current_user.id)
+
 
     bookings = (
         db.session.query(BookingRequest)
@@ -3262,11 +3282,20 @@ UPLOAD_FOLDER = 'static/uploads/receipts'
 def add_transaction():
     if request.method == "POST":
         receipt_file = request.files.get("receipt")
-        filename = None
-        if receipt_file and receipt_file.filename != "":
-            filename = secure_filename(receipt_file.filename)
-            receipt_file.save(os.path.join(UPLOAD_FOLDER, filename))
+        receipt_url = None
 
+        if receipt_file and receipt_file.filename != "":
+            # Upload receipt to Cloudinary
+            upload_result = cloudinary.uploader.upload(
+                receipt_file,
+                folder=f"transactions/{current_user.id}",  # optional: organize by user
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False
+            )
+            receipt_url = upload_result["secure_url"]
+
+        # Save transaction to database
         t = Transaction(
             user_id=current_user.id,
             date=request.form.get("date") or date.today(),
@@ -3275,20 +3304,23 @@ def add_transaction():
             description=request.form.get("description"),
             amount=float(request.form.get("amount")),
             payment_method=request.form.get("payment_method"),
-            receipt=filename
+            receipt=receipt_url  # store Cloudinary URL
         )
         db.session.add(t)
         db.session.commit()
-        flash("Transaction added successfully!", "success")
+        flash("✅ Transaction added successfully!", "success")
         return redirect(url_for('seller_dashboard.transactions'))
 
     return render_template("add_transaction.html", date_today=date.today())
 
 # Edit Transaction
+import cloudinary.uploader
+
 @seller_dashboard_bp.route("/transactions/edit/<int:id>", methods=["GET", "POST"])
 @login_required
 def edit_transaction(id):
     t = Transaction.query.get_or_404(id)
+
     if request.method == "POST":
         t.date = request.form.get("date")
         t.type = request.form.get("type")
@@ -3299,29 +3331,47 @@ def edit_transaction(id):
 
         receipt_file = request.files.get("receipt")
         if receipt_file and receipt_file.filename != "":
-            filename = secure_filename(receipt_file.filename)
-            receipt_file.save(os.path.join(UPLOAD_FOLDER, filename))
-            t.receipt = filename
+            # Delete old receipt from Cloudinary if exists
+            if t.receipt:
+                public_id = t.receipt.rsplit("/", 1)[-1].split(".")[0]  # extract file name without extension
+                try:
+                    cloudinary.uploader.destroy(f"transactions/{current_user.id}/{public_id}")
+                except Exception as e:
+                    print("Error deleting old receipt:", e)
+
+            # Upload new receipt to Cloudinary
+            upload_result = cloudinary.uploader.upload(
+                receipt_file,
+                folder=f"transactions/{current_user.id}",
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False
+            )
+            t.receipt = upload_result["secure_url"]
 
         db.session.commit()
-        flash("Transaction updated successfully!", "success")
+        flash("✅ Transaction updated successfully!", "success")
         return redirect(url_for('seller_dashboard.transactions'))
 
     return render_template("edit_transaction.html", transaction=t)
 
-# Delete Transaction
+
 @seller_dashboard_bp.route("/transactions/delete/<int:id>", methods=["POST"])
 @login_required
 def delete_transaction(id):
     t = Transaction.query.get_or_404(id)
+
+    # Delete receipt from Cloudinary if exists
     if t.receipt:
+        public_id = t.receipt.rsplit("/", 1)[-1].split(".")[0]
         try:
-            os.remove(os.path.join(UPLOAD_FOLDER, t.receipt))
-        except:
-            pass
+            cloudinary.uploader.destroy(f"transactions/{current_user.id}/{public_id}")
+        except Exception as e:
+            print("Error deleting receipt from Cloudinary:", e)
+
     db.session.delete(t)
     db.session.commit()
-    flash("Transaction deleted successfully!", "success")
+    flash("✅ Transaction deleted successfully!", "success")
     return redirect(url_for('seller_dashboard.transactions'))
 
 @seller_dashboard_bp.route("/transactions/export")
@@ -3373,26 +3423,63 @@ def process_recurring_transactions():
     db.session.commit()
 
 
+import cloudinary.uploader
+
 @seller_dashboard_bp.route("/verify_seller", methods=["GET", "POST"])
 @login_required
 def verify_seller():
     if current_user.is_verified:
         flash("You are already verified.", "success")
-        return redirect(url_for("seller_dashboard.dashboard"))
+        return redirect(url_for("seller_dashboard.my_dashboard"))
 
     if request.method == "POST":
         gov_id = request.files.get("government_id")
         selfie = request.files.get("selfie")
 
-        gov_id_path = save_file(gov_id, "verification")
-        selfie_path = save_file(selfie, "verification")
+        if not gov_id or not selfie:
+            flash("Please upload both government ID and a selfie.", "danger")
+            return redirect(url_for("seller_dashboard.verify_seller"))
 
-        db.session.add(VerificationDocument(user_id=current_user.id, doc_type="government_id", file_path=gov_id_path))
-        db.session.add(VerificationDocument(user_id=current_user.id, doc_type="selfie", file_path=selfie_path))
-        db.session.commit()
+        # Upload to Cloudinary
+        try:
+            gov_id_upload = cloudinary.uploader.upload(
+                gov_id,
+                folder="verification_docs",
+                public_id=f"{current_user.id}_gov_id",
+                overwrite=True,
+                resource_type="image"
+            )
+            selfie_upload = cloudinary.uploader.upload(
+                selfie,
+                folder="verification_docs",
+                public_id=f"{current_user.id}_selfie",
+                overwrite=True,
+                resource_type="image"
+            )
 
-        flash("Documents submitted. Awaiting admin approval.", "info")
-        return redirect(url_for("seller_dashboard.my_dashboard"))
+            gov_id_url = gov_id_upload["secure_url"]
+            selfie_url = selfie_upload["secure_url"]
+
+            # Save to DB
+            db.session.add(VerificationDocument(
+                user_id=current_user.id,
+                doc_type="government_id",
+                file_path=gov_id_url
+            ))
+            db.session.add(VerificationDocument(
+                user_id=current_user.id,
+                doc_type="selfie",
+                file_path=selfie_url
+            ))
+            db.session.commit()
+
+            flash("Documents submitted. Awaiting admin approval.", "info")
+            return redirect(url_for("seller_dashboard.my_dashboard"))
+
+        except Exception as e:
+            print("Cloudinary upload failed:", e)
+            flash("Error uploading documents. Please try again.", "danger")
+            return redirect(url_for("seller_dashboard.verify_seller"))
 
     return render_template("seller_verify.html")
 

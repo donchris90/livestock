@@ -23,16 +23,24 @@
                 <td>{{ kyc.full_name }}</td>
                 <td>{{ kyc.address }}</td>
                 <td>{{ kyc.document_type }}</td>
-                <td>
-    {% if kyc.document_images %}
-        {% for img in kyc.document_images %}
-            {% set clean_path = img.replace('app\\static\\', '').replace('"', '').replace('\\', '/') %}
-            <a href="{{ url_for('static', filename=clean_path) }}" target="_blank">
-                <img src="{{ url_for('static', filename=clean_path) }}" height="50" class="me-1 mb-1">
-            </a>
-        {% endfor %}
-    {% endif %}
+               <td>
+  {% if kyc.document_images %}
+    {% for img in kyc.document_images %}
+      {% if img.startswith('http') %}
+        <!-- Cloudinary or external URL -->
+        <a href="{{ img }}" target="_blank">
+          <img src="{{ img }}" height="50" class="me-1 mb-1">
+        </a>
+      {% else %}
+        <!-- Local static file -->
+        <a href="{{ url_for('static', filename=img) }}" target="_blank">
+          <img src="{{ url_for('static', filename=img) }}" height="50" class="me-1 mb-1">
+        </a>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
 </td>
+
                 <td>
                     {% if kyc.status == 'pending' %}
                         <span class="badge bg-warning">Pending</span>

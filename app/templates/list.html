@@ -10,85 +10,81 @@
         </a>
     </div>
 
-     <br><br>
-  {% if products %}
-  <div class="row">
-    {% for product in products %}
-    <div class="col-md-4 mb-4">
-      <div class="card shadow-sm">
-        {% if product.photos and product.photos[0] %}
-        <img src="{{ url_for('static', filename=product.photos[0].split('static/')[-1]) }}"
-             class="card-img-top"
-             alt="{{ product.title }}"
-             style="height: 200px; object-fit: cover;">
-        {% else %}
-        <img src="{{ url_for('static', filename='default.jpg') }}"
-             class="card-img-top"
-             alt="No Image"
-             style="height: 200px; object-fit: cover;">
-        {% endif %}
+    <br><br>
+    {% if products %}
+    <div class="row">
+        {% for product in products %}
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                {% set photo_url = url_for('static', filename='images/default.jpg') %}
+                {% if product.photos and product.photos[0] %}
+                    {% set photo_url = product.photos[0] %}
+                {% endif %}
+                <img src="{{ photo_url }}"
+                     class="card-img-top"
+                     alt="{{ product.title }}"
+                     style="height: 200px; object-fit: cover;">
 
-        <div class="card-body">
-         <div class="d-flex justify-content-between align-items-center mb-2">
-  <a href="{{ url_for('promotion.promote_product', product_id=product.id) }}"
-     class="btn btn-outline-primary btn-sm">
-    🚀 Promote
-  </a>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <a href="{{ url_for('promotion.promote_product', product_id=product.id) }}"
+                           class="btn btn-outline-primary btn-sm">
+                            🚀 Promote
+                        </a>
 
-  {% if product.is_featured and product.featured_expiry and product.featured_expiry > now %}
-    <span class="badge bg-warning">
-      🌟 Featured (expires {{ product.featured_expiry.strftime('%b %d') }})
-    </span>
-  {% endif %}
+                        {% if product.is_featured and product.featured_expiry and product.featured_expiry > now %}
+                            <span class="badge bg-warning">
+                              🌟 Featured (expires {{ product.featured_expiry.strftime('%b %d') }})
+                            </span>
+                        {% endif %}
 
-  {% if product.is_boosted and product.boost_expiry and product.boost_expiry > now %}
-    <span class="badge bg-info">
-      🚀 Boosted (expires {{ product.boost_expiry.strftime('%b %d') }})
-    </span>
-  {% endif %}
+                        {% if product.is_boosted and product.boost_expiry and product.boost_expiry > now %}
+                            <span class="badge bg-info">
+                              🚀 Boosted (expires {{ product.boost_expiry.strftime('%b %d') }})
+                            </span>
+                        {% endif %}
 
-  {% if product.is_top and product.top_expiry and product.top_expiry > now %}
-    <span class="badge bg-success">
-      🔝 Top (expires {{ product.top_expiry.strftime('%b %d') }})
-    </span>
-  {% endif %}
-</div>
+                        {% if product.is_top and product.top_expiry and product.top_expiry > now %}
+                            <span class="badge bg-success">
+                              🔝 Top (expires {{ product.top_expiry.strftime('%b %d') }})
+                            </span>
+                        {% endif %}
+                    </div>
 
+                    <h5 class="card-title">{{ product.title }}</h5>
+                    <p><strong>Type:</strong> {{ product.type }}</p>
+                    <p><strong>Category:</strong> {{ product.category }}</p>
+                    <p><strong>Location:</strong> {{ product.state }}, {{ product.city }}</p>
+                    <p><strong>Quantity:</strong> {{ product.quantity }}</p>
+                    <p><strong>Price:</strong> ₦{{ product.price }}</p>
+                    <p><strong>Negotiable:</strong> {{ product.open_to_negotiation }}</p>
+                    <p><strong>Phone:</strong> {{ product.phone_display }}</p>
 
-          <h5 class="card-title">{{ product.title }}</h5>
-          <p><strong>Type:</strong> {{ product.type }}</p>
-          <p><strong>Category:</strong> {{ product.category }}</p>
-          <p><strong>Location:</strong> {{ product.state }}, {{ product.city }}</p>
-          <p><strong>Quantity:</strong> {{ product.quantity }}</p>
-          <p><strong>Price:</strong> ₦{{ product.price }}</p>
-          <p><strong>Negotiable:</strong> {{ product.open_to_negotiation }}</p>
-          <p><strong>Phone:</strong> {{ product.phone_display }}</p>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{{ url_for('seller_dashboard.edit_product', product_id=product.id) }}"
+                           class="btn btn-sm btn-primary">Edit</a>
 
-          <div class="d-flex align-items-center gap-2">
-            <a href="{{ url_for('seller_dashboard.edit_product', product_id=product.id) }}"
-               class="btn btn-sm btn-primary">Edit</a>
+                        {% if product.is_paid %}
+                            <span class="badge bg-success">✅ Paid</span>
+                        {% endif %}
+                    </div>
 
-            {% if product.is_paid %}
-            <span class="badge bg-success">✅ Paid</span>
-            {% endif %}
-          </div>
-
-          <form method="POST"
-                action="{{ url_for('seller_dashboard.delete_product', product_id=product.id) }}"
-                class="d-inline">
-            <button class="btn btn-sm btn-danger mt-2"
-                    onclick="return confirm('Are you sure you want to delete this product?')">
-              Delete
-            </button>
-          </form>
+                    <form method="POST"
+                          action="{{ url_for('seller_dashboard.delete_product', product_id=product.id) }}"
+                          class="d-inline">
+                        <button class="btn btn-sm btn-danger mt-2"
+                                onclick="return confirm('Are you sure you want to delete this product?')">
+                          Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
-      </div>
+        {% endfor %}
     </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <p>You haven't uploaded any products yet.</p>
-  {% endif %}
+    {% else %}
+        <p>You haven't uploaded any products yet.</p>
+    {% endif %}
 
 </div>
 {% endblock %}

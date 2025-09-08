@@ -11,13 +11,21 @@
             <p><strong>Phone:</strong> {{ seller.phone_number }}</p>
         </div>
         <div class="col-md-6">
-            <p><strong>Documents:</strong></p>
-            {% for doc in documents %}
-                {% set clean_path = doc.file_path.replace('app\\static\\', '').replace('"', '').replace('\\', '/') %}
-                <a href="{{ url_for('static', filename=clean_path) }}" target="_blank">
-                    <img src="{{ url_for('static', filename=clean_path) }}" class="img-fluid mb-2">
-                </a>
-            {% endfor %}
+           <p><strong>Documents:</strong></p>
+{% for doc in documents %}
+    {% if doc.file_path.startswith('http') %}
+        <!-- Cloudinary / external URL -->
+        <a href="{{ doc.file_path }}" target="_blank">
+            <img src="{{ doc.file_path }}" class="img-fluid mb-2" style="max-width:150px; height:auto;">
+        </a>
+    {% else %}
+        <!-- Local static file -->
+        <a href="{{ url_for('static', filename=doc.file_path) }}" target="_blank">
+            <img src="{{ url_for('static', filename=doc.file_path) }}" class="img-fluid mb-2" style="max-width:150px; height:auto;">
+        </a>
+    {% endif %}
+{% endfor %}
+
         </div>
     </div>
 

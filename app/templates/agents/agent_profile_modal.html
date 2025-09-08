@@ -23,10 +23,13 @@
   <!-- Agent Header -->
   <div class="agent-info mb-3">
     {% if agent.profile_photo %}
-      <img src="{{ url_for('static', filename=agent.profile_photo) }}" alt="Profile Photo" class="profile-photo">
+       <img src="{{ agent.profile_photo }}" alt="Profile Photo" class="profile-photo">
     {% else %}
       <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Profile Photo" class="profile-photo">
     {% endif %}
+
+
+</div>
 
     <div class="agent-details">
       <h3 class="d-flex align-items-center">
