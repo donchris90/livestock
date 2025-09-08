@@ -37,7 +37,7 @@
     {% elif current_user.role == 'agent' %}
       <a class="nav-link" href="{{ url_for('agents.agent_dashboard') }}">Dashboard</a>
     {% elif current_user.role == 'logistics' %}
-      <a class="nav-link" href="{{ url_for('logistics.dashboard') }}">Dashboard</a>
+      <a class="nav-link" href="{{ url_for('logistics.logistics_dashboard') }}">Dashboard</a>
     {% elif current_user.role == 'vet' %}
       <a class="nav-link" href="{{ url_for('vet_dashboard.dashboard') }}">Dashboard</a>
     {% endif %}

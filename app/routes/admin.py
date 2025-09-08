@@ -635,7 +635,8 @@ def admin_mark_complete(escrow_id):
         flash("This order has already been marked as completed.", "info")
         return redirect(request.referrer)
 
-    seller = User.query.get(escrow.seller_id)
+    # ✅ Use provider (not seller_id)
+    seller = escrow.provider
     admin_user = User.query.filter_by(role='admin').first()
 
     if not seller:
@@ -669,7 +670,7 @@ def admin_mark_complete(escrow_id):
             wallet_id=seller_wallet.id,
             amount=offer_amount,
             transaction_type="credit",
-            description=f"Escrow payout for product: {escrow.product.title}",
+            description=f"Escrow payout for product: {escrow.product.title if escrow.product else 'N/A'}",
             timestamp=datetime.utcnow(),
             created_at=datetime.utcnow(),
             status="success",
@@ -686,7 +687,7 @@ def admin_mark_complete(escrow_id):
                 wallet_id=admin_wallet.id,
                 amount=escrow_fee,
                 transaction_type="credit",
-                description=f"Escrow fee earned for product: {escrow.product.title}",
+                description=f"Escrow fee earned for product: {escrow.product.title if escrow.product else 'N/A'}",
                 timestamp=datetime.utcnow(),
                 created_at=datetime.utcnow(),
                 status="success",
@@ -706,7 +707,6 @@ def admin_mark_complete(escrow_id):
         flash(f"Error during payout release: {str(e)}", "danger")
 
     return redirect(request.referrer)
-
 
 
 @admin_bp.route("/admin-escrow-orders")

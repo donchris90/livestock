@@ -143,40 +143,56 @@ def verify_topup(reference):
         "Content-Type": "application/json"
     }
 
-    response = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
-    result = response.json()
+    try:
+        response = requests.get(
+            f"https://api.paystack.co/transaction/verify/{reference}",
+            headers=headers,
+            timeout=10
+        )
+        result = response.json()
+        print("🔍 PAYSTACK VERIFY RESPONSE:", result)  # debug log
+    except Exception as e:
+        return jsonify({"error": f"Failed to contact Paystack: {str(e)}"}), 500
 
+    # --- Validate API response ---
     if not result.get("status"):
-        return jsonify({"error": "Verification failed"}), 400
+        return jsonify({"error": f"Verification failed: {result.get('message', 'Unknown error')}"}), 400
 
-    data = result["data"]
-    if data["status"] != "success":
-        return jsonify({"error": "Payment not successful"}), 400
+    data = result.get("data", {})
+    if data.get("status") != "success":
+        return jsonify({"error": f"Payment not successful. Status: {data.get('status')}"}), 400
 
-    # Extract metadata
-    user_id = data["metadata"].get("user_id")
-    amount = Decimal(data["amount"]) / Decimal(100)  # Amount in Naira
+    # --- Metadata & Amount ---
+    metadata = data.get("metadata", {}) or {}
+    user_id = metadata.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Missing user_id in Paystack metadata"}), 400
 
     try:
-        # Calculate fee and net amount
+        amount = Decimal(data.get("amount", 0)) / Decimal(100)  # convert to Naira
+    except Exception as e:
+        return jsonify({"error": f"Invalid amount format: {str(e)}"}), 400
+
+    try:
+        # --- Fee and Net ---
         fee = (amount * Decimal("0.01")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         net_amount = (amount - fee).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-        # Get or create wallets
+        # --- Wallets ---
         user_wallet = get_or_create_wallet(user_id)
         admin_wallet = get_or_create_wallet(7)  # admin user_id
 
-        # Credit wallets
-        user_wallet.balance += net_amount
-        admin_wallet.balance += fee
+        # --- Update balances (cast to Decimal if your model uses it) ---
+        user_wallet.balance = (Decimal(user_wallet.balance) + net_amount).quantize(Decimal("0.01"))
+        admin_wallet.balance = (Decimal(admin_wallet.balance) + fee).quantize(Decimal("0.01"))
 
-        # Record transactions
+        # --- Transactions ---
         user_transaction = WalletTransaction(
             user_id=user_id,
             wallet_id=user_wallet.id,
             amount=net_amount,
             transaction_type="topup",
-            description=f"Wallet top-up of ₦{net_amount} after ₦{fee} fee via Paystack",
+            description=f"Wallet top-up of ₦{net_amount} (₦{fee} fee deducted)",
             status="success",
             reference=reference
         )
@@ -195,7 +211,7 @@ def verify_topup(reference):
         db.session.commit()
 
         return jsonify({
-            "message": f"Wallet credited with ₦{net_amount}, ₦{fee} sent to admin as fee",
+            "message": f"✅ Wallet credited with ₦{net_amount}, ₦{fee} sent to admin as fee",
             "wallet_balance": float(user_wallet.balance)
         }), 200
 

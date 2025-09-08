@@ -363,7 +363,8 @@ class BankDetails(db.Model):
     account_number = db.Column(db.String(20), nullable=False, unique=True)
     account_name = db.Column(db.String(100), nullable=False)
     bank_code = db.Column(db.String(10), nullable=False)
-
+    recipient_code = db.Column(db.String(100), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship("User", backref="bank_accounts")
 
 # ---------------------- SUBSCRIPTION ----------------------

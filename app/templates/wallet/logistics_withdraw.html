@@ -1,4 +1,4 @@
-{% extends "agents/base.html" %}
+{% extends "logistics/base.html" %}
 {% block content %}
 
 <div class="container mt-4">
@@ -9,23 +9,28 @@
     <form method="POST">
         {{ form.hidden_tag() }}
 
+        <!-- Bank Account -->
         <div class="form-group mb-3">
-            {{ form.bank_account.label }}
+            {{ form.bank_account.label(class="form-label") }}
             {{ form.bank_account(class="form-control") }}
             {% for error in form.bank_account.errors %}
-                <div class="text-danger">{{ error }}</div>
+                <div class="text-danger small">{{ error }}</div>
             {% endfor %}
         </div>
 
+        <!-- Amount -->
         <div class="form-group mb-3">
-            {{ form.amount.label }}
+            {{ form.amount.label(class="form-label") }}
             {{ form.amount(class="form-control") }}
             {% for error in form.amount.errors %}
-                <div class="text-danger">{{ error }}</div>
+                <div class="text-danger small">{{ error }}</div>
             {% endfor %}
         </div>
 
-        {{ form.submit(class="btn btn-success") }}
+        <!-- Submit -->
+        <div class="d-grid">
+            {{ form.submit(class="btn btn-success") }}
+        </div>
     </form>
 </div>
 

@@ -2988,62 +2988,7 @@ def confirm_booking(booking_id):
     return redirect(url_for('seller_dashboard.booking_history'))
   # adjust path based on where send_email is defined
 
-@seller_dashboard_bp.route("/agent-withdraw", methods=["GET", "POST"])
-@login_required
-def agent_withdraw():
-    # Ensure only agents can access
-    if current_user.role != "agent":
-        flash("Access denied.", "danger")
-        return redirect(url_for("seller_dashboard.my_dashboard"))
 
-    # Get or create agent wallet
-    wallet = Wallet.query.filter_by(user_id=current_user.id).first()
-    if not wallet:
-        wallet = Wallet(user_id=current_user.id, balance=0.0)
-        db.session.add(wallet)
-        db.session.commit()
-
-    # Withdrawal form
-    form = WithdrawalForm()
-
-    # Agent's bank accounts
-    bank_accounts = BankDetails.query.filter_by(user_id=current_user.id).all()
-    form.bank_account.choices = [(b.id, f"{b.bank_name} - {b.account_number}") for b in bank_accounts]
-
-    if request.method == "POST" and form.validate_on_submit():
-        selected_bank = BankDetails.query.get(form.bank_account.data)
-        amount = form.amount.data
-
-        if not selected_bank:
-            flash("Selected bank not found.", "danger")
-            return redirect(url_for("seller_dashboard.agent_withdraw"))
-
-        if amount > wallet.balance:
-            flash("Insufficient balance.", "danger")
-            return redirect(url_for("seller_dashboard.agent_withdraw"))
-
-        # Initiate Paystack transfer
-        transfer_result = initiate_paystack_transfer(
-            bank_code=selected_bank.bank_code,
-            account_number=selected_bank.account_number,
-            amount=int(amount * 100),  # Paystack expects kobo
-            name=selected_bank.account_name
-        )
-
-        if transfer_result.get("status"):
-            wallet.balance -= amount
-            db.session.commit()
-            flash(f"Withdrawal of ₦{amount:,.2f} initiated successfully.", "success")
-            return redirect(url_for("seller_dashboard.agent_withdraw"))
-        else:
-            flash("Withdrawal failed: " + transfer_result.get("message", "Unknown error"), "danger")
-
-    return render_template(
-        "wallet/agent_withdraw.html",  # Separate template for agent
-        form=form,
-        wallet=wallet,
-        bank_accounts=bank_accounts
-    )
 
 # agents/routes.py
 @seller_dashboard_bp.route("/agent/bank-details")
@@ -3572,3 +3517,72 @@ def my_reviews():
         .order_by(Review.created_at.desc()).all()
 
     return render_template("inspection_feedback.html", given_reviews=given_reviews)
+
+@seller_dashboard_bp.route("/logistics/bank-details")
+@login_required
+def logistics_bank_details():
+    if current_user.role != "logistics":
+        abort(403)
+    bank_accounts = BankDetails.query.filter_by(user_id=current_user.id).all()
+    return render_template("logistics/view_logistics_bank_details.html", bank_details=bank_accounts)
+
+
+@seller_dashboard_bp.route("/logistics/setup-payout", methods=["GET", "POST"])
+@login_required
+def logistics_setup_payout():
+    if current_user.role != "logistics":
+        abort(403)
+
+    form = PayoutForm()
+    headers = {
+        "Authorization": f"Bearer {current_app.config['PAYSTACK_SECRET_KEY']}"
+    }
+
+    # Fetch banks from Paystack
+    banks = []
+    bank_response = requests.get("https://api.paystack.co/bank", headers=headers)
+    if bank_response.status_code == 200:
+        banks = bank_response.json().get("data", [])
+        form.bank_name.choices = [(bank["code"], bank["name"]) for bank in banks]
+    else:
+        flash("Could not load banks", "danger")
+
+    if form.validate_on_submit():
+        bank_code = form.bank_name.data
+        account_number = form.account_number.data
+        account_name = form.account_name.data
+
+        # Create Paystack recipient
+        payload = {
+            "type": "nuban",
+            "name": account_name,
+            "account_number": account_number,
+            "bank_code": bank_code,
+            "currency": "NGN"
+        }
+        response = requests.post("https://api.paystack.co/transferrecipient", json=payload, headers=headers)
+        result = response.json()
+
+        if result.get("status"):
+            recipient_code = result["data"]["recipient_code"]
+
+            # Create a new bank record
+            bank_details = BankDetails(
+                user_id=current_user.id,
+                bank_name=dict(form.bank_name.choices).get(bank_code),
+                bank_code=bank_code,
+                account_number=account_number,
+                account_name=account_name,
+                recipient_code=recipient_code
+            )
+            db.session.add(bank_details)
+            current_user.recipient_code = recipient_code
+            db.session.commit()
+
+            flash("Payout setup successful", "success")
+            return redirect(url_for("seller_dashboard.logistics_bank_details"))
+        else:
+            flash("Paystack Error: " + result.get("message", "Could not create recipient"), "danger")
+
+    return render_template("logistics/logistics_payout.html", form=form, banks=banks)
+

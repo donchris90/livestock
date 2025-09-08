@@ -501,26 +501,32 @@ window.startTopup = function(amount) {
             console.log("Paystack reference:", response.reference);
 
             fetch(`/verify-topup/${response.reference}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    // Handle HTTP errors
+                    throw new Error(`Server error: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => {
                 if (data.error) {
-                    alert("Top-up failed: " + data.error);
+                    alert("❌ Top-up failed: " + data.error);
                     return;
                 }
 
-                // Update wallet balance on page
+                // ✅ Update wallet balance
                 if (data.wallet_balance !== undefined) {
                     document.getElementById('wallet-balance').textContent =
-                        `₦${Number(data.wallet_balance).toLocaleString(undefined,{minimumFractionDigits:2})}`;
+                        `₦${Number(data.wallet_balance).toLocaleString(undefined, {minimumFractionDigits:2})}`;
                 }
 
                 if (data.message) {
-                    alert(data.message);
+                    alert("✅ " + data.message);
                 }
             })
             .catch(err => {
                 console.error("Verification error:", err);
-                alert("Error verifying payment. Check console for details.");
+                alert("⚠️ Verification failed: " + err.message);
             });
         },
         onClose: function() {

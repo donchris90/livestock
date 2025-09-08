@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, flash, redirect, url_for,abort, request, jsonify, current_app
-
+from app.models import Wallet, BankDetails, Withdrawal
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.routes.utils import create_notification,mail
@@ -8,6 +8,8 @@ from app.utils.payout_utils import get_or_create_wallet
 from app.forms import FeedbackForm,DocumentUploadForm
 import os
 from flask import request, redirect, url_for, flash
+from app.forms import WithdrawalForm
+from decimal import Decimal
 from flask_login import login_required, current_user
 from app.extensions import db, socketio
 from app.utils.email_utils import send_email
@@ -1065,3 +1067,67 @@ def agent_profile_standalone(agent_id):
             total_reviews=total_reviews,
 
         )
+
+@agents_bp.route("/withdraw", methods=["GET", "POST"])
+@login_required
+def agent_withdraw():
+    # ✅ Only agents allowed
+    if current_user.role != "agent":
+        flash("Access denied.", "danger")
+        return redirect(url_for("agents.dashboard"))
+
+    # ✅ Get or create wallet
+    wallet = Wallet.query.filter_by(user_id=current_user.id).first()
+    if not wallet:
+        wallet = Wallet(
+            user_id=current_user.id,
+            balance=Decimal("0.00"),
+            pending_balance=Decimal("0.00")
+        )
+        db.session.add(wallet)
+        db.session.commit()
+
+    form = WithdrawalForm()
+
+    # ✅ Load saved bank accounts
+    bank_accounts = BankDetails.query.filter_by(user_id=current_user.id).all()
+    form.bank_account.choices = [(b.id, f"{b.bank_name} - {b.account_number}") for b in bank_accounts]
+
+    if request.method == "POST" and form.validate_on_submit():
+        selected_bank = BankDetails.query.get(form.bank_account.data)
+        amount = Decimal(str(form.amount.data))
+
+        if not selected_bank:
+            flash("Selected bank not found.", "danger")
+            return redirect(url_for("agents.agent_withdraw"))
+
+        if amount > (wallet.balance or Decimal("0.00")):
+            flash("Insufficient balance.", "danger")
+            return redirect(url_for("agents.agent_withdraw"))
+
+        # ✅ Move balance → pending
+        wallet.balance = (wallet.balance or Decimal("0.00")) - amount
+        wallet.pending_balance = (wallet.pending_balance or Decimal("0.00")) + amount
+
+        # ✅ Create withdrawal request for admin approval
+        withdrawal = Withdrawal(
+            user_id=current_user.id,
+            bank_id=selected_bank.id,
+            amount=amount,
+            status="pending"
+        )
+
+        db.session.add(withdrawal)
+        db.session.add(wallet)
+        db.session.commit()
+        db.session.refresh(wallet)
+
+        flash(f"Withdrawal of ₦{amount:,.2f} submitted. Awaiting admin approval.", "success")
+        return redirect(url_for("agents.agent_withdraw"))
+
+    return render_template(
+        "wallet/agent_withdraw.html",
+        form=form,
+        wallet=wallet,
+        bank_accounts=bank_accounts
+    )

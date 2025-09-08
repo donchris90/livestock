@@ -1,0 +1,35 @@
+{% extends "logistics/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">🚚 My Bank Accounts</h2>
+
+    {% if bank_details %}
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Bank</th>
+                    <th>Account Number</th>
+                    <th>Account Name</th>
+                    <th>Date Added</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bank in bank_details %}
+                <tr>
+                    <td>{{ bank.bank_name }}</td>
+                    <td>{{ bank.account_number }}</td>
+                    <td>{{ bank.account_name }}</td>
+                    <td>{{ bank.created_at.strftime('%Y-%m-%d %H:%M') if bank.created_at else 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info">No bank accounts added yet.</div>
+    {% endif %}
+
+    <a href="{{ url_for('seller_dashboard.logistics_setup_payout') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add New Bank Account
+    </a>
+</div>
+{% endblock %}

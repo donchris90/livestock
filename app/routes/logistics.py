@@ -6,6 +6,11 @@ from datetime import  datetime, timedelta
 from app.utils.email_utils import send_email,mail
 from werkzeug.utils import secure_filename
 from app.utils.payout_utils import get_or_create_wallet
+from app.forms import WithdrawalForm
+from decimal import Decimal
+from app import db
+from app.models import Wallet, BankDetails, Withdrawal   # models
+from app.forms import WithdrawalForm
 import  os
 logistics_bp = Blueprint('logistics', __name__, url_prefix='/logistics')
 from sqlalchemy.orm import joinedload
@@ -229,25 +234,22 @@ def analytics():
 def transaction_history():
     return render_template('logistics/transaction_history.html')
 
-@logistics_bp.route('/wallet')
-def wallet():
-    return render_template('logistics/wallet.html')
+
 
 @logistics_bp.route('/contact')
 def contact():
     return render_template('support/contact.html')
 
+
 @logistics_bp.route('/notifications')
 @login_required
 def logistics_notifications():
-    # You can replace this with real DB logic
-    notifications = [
-        {'message': 'New delivery request received', 'timestamp': '2025-08-06 14:00'},
-        {'message': 'Customer marked delivery as completed', 'timestamp': '2025-08-05 09:30'},
-    ]
-    return render_template('logistics/notifications.html', notifications=notifications)
+    # ✅ Query the real DB notifications for the logged-in user
+    notifications = Notification.query.filter_by(user_id=current_user.id) \
+        .order_by(Notification.timestamp.desc()) \
+        .all()
 
-
+    return render_template('notifications.html', notifications=notifications)
 
 
 # This should be in logistics_bp or the blueprint handling logistics booking
@@ -565,14 +567,7 @@ def kyc():
 
     return render_template('logistics/kyc.html')
 
-@logistics_bp.route("/withdraw", methods=["POST"])
-@login_required
-def withdraw():
-    # handle withdrawal request
-    amount = request.form.get("amount")
-    # your withdrawal logic here
-    flash("Withdrawal request submitted.", "success")
-    return redirect(url_for("logistics.wallet"))
+
 
 UPLOAD_FOLDER = "app/static/uploads/profile_photos"
 
@@ -715,3 +710,67 @@ def logistic_profile_standalone(user_id):
 
     # Otherwise return full page
     return render_template('logistics/logistic_profile.html', logistic=logistic)
+
+@logistics_bp.route("/withdraw", methods=["GET", "POST"])
+@login_required
+def logistics_withdraw():
+    # ✅ Only logistics allowed
+    if current_user.role != "logistics":
+        flash("Access denied.", "danger")
+        return redirect(url_for("logistics.dashboard"))
+
+    # ✅ Get or create wallet
+    wallet = Wallet.query.filter_by(user_id=current_user.id).first()
+    if not wallet:
+        wallet = Wallet(
+            user_id=current_user.id,
+            balance=Decimal("0.00"),
+            pending_balance=Decimal("0.00")
+        )
+        db.session.add(wallet)
+        db.session.commit()
+
+    form = WithdrawalForm()
+
+    # ✅ Load saved bank accounts
+    bank_accounts = BankDetails.query.filter_by(user_id=current_user.id).all()
+    form.bank_account.choices = [(b.id, f"{b.bank_name} - {b.account_number}") for b in bank_accounts]
+
+    if request.method == "POST" and form.validate_on_submit():
+        selected_bank = BankDetails.query.get(form.bank_account.data)
+        amount = Decimal(str(form.amount.data))
+
+        if not selected_bank:
+            flash("Selected bank not found.", "danger")
+            return redirect(url_for("logistics.logistics_withdraw"))
+
+        if amount > (wallet.balance or Decimal("0.00")):
+            flash("Insufficient balance.", "danger")
+            return redirect(url_for("logistics.logistics_withdraw"))
+
+        # ✅ Move balance → pending
+        wallet.balance = (wallet.balance or Decimal("0.00")) - amount
+        wallet.pending_balance = (wallet.pending_balance or Decimal("0.00")) + amount
+
+        # ✅ Create withdrawal request for admin approval
+        withdrawal = Withdrawal(
+            user_id=current_user.id,
+            bank_id=selected_bank.id,
+            amount=amount,
+            status="pending"
+        )
+
+        db.session.add(withdrawal)
+        db.session.add(wallet)
+        db.session.commit()
+        db.session.refresh(wallet)
+
+        flash(f"Withdrawal of ₦{amount:,.2f} submitted. Awaiting admin approval.", "success")
+        return redirect(url_for("logistics.logistics_dashboard"))
+
+    return render_template(
+        "wallet/logistics_withdraw.html",
+        form=form,
+        wallet=wallet,
+        bank_accounts=bank_accounts
+    )

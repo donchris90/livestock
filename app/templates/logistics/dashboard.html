@@ -65,7 +65,7 @@
                 <p><strong>Wallet Balance:</strong> ₦{{ "{:,.2f}".format(wallet.balance or 0) }}</p>
 
                 {% if wallet.balance > 0 %}
-                    <form action="{{ url_for('seller_dashboard.agent_withdraw') }}" method="GET">
+                    <form action="{{ url_for('logistics.logistics_withdraw') }}" method="GET">
                         <button type="submit" class="btn btn-primary btn-sm mt-2 w-100">
                             Withdraw ₦{{ "{:,.2f}".format(wallet.balance) }}
                         </button>
@@ -73,7 +73,7 @@
                 {% endif %}
             </div>
         </div>
-    </div>
+    </div
 
     <!-- 💵 Escrow Status -->
     <div class="card mb-4 shadow-sm p-3">

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Logistics Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
 </head>
@@ -27,17 +29,11 @@
           </li>
 
           <!-- Services -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-              📦 Services
-            </a>
-            <ul class="dropdown-menu">
-             <a class="dropdown-item" href="{{ url_for('logistics.view_driver_bookings') }}">
+           <li class="nav-item">
+           <a class="nav-link" href="{{ url_for('logistics.view_driver_bookings') }}">
   <i class="bi bi-truck"></i> View Bookings
 </a>
- <li><a class="dropdown-item" href="{{ url_for('logistics.appointments') }}">📅 Appointments</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('logistics.track_delivery') }}">📍 Track Delivery</a></li>
-            </ul>
+
           </li>
 
           <!-- Messages -->
@@ -48,40 +44,50 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{{ url_for('chat.inbox') }}">📥 Inbox</a></li>
               <li><a class="dropdown-item" href="{{ url_for('logistics.logistics_notifications') }}">🔔 Notifications</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('logistics.view_reviews') }}">⭐ Reviews</a></li>
-            </ul>
+                  </ul>
           </li>
 
-          <!-- Analytics -->
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-              📊 Analytics
-            </a>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{{ url_for('logistics.analytics') }}">📈 Performance Stats</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('logistics.transaction_history') }}">🧾 Transaction History</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('logistics.wallet') }}">💼 Wallet</a></li>
-            </ul>
-          </li>
- <li class="nav-item">
-        <a class="nav-link" href="{{ url_for('logistics.kyc') }}">Submit KYC</a>
-    </li>
+
+
           <!-- Settings -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
               ⚙️ Settings
             </a>
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{{ url_for('logistics.logistics_profile') }}">👤 Profile</a></li>
-              <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('logistics.contact') }}">📞 Contact Support</a></li>
-            </ul>
+
+                <li><a class="dropdown-item" href="{{ url_for('logistics.logistics_profile') }}">👤 Profile</a></li>
+             <li>
+  <a class="dropdown-item" href="{{ url_for('logistics.kyc') }}">
+    <i class="bi bi-person-badge"></i> Submit KYC
+  </a>
+</li>
+   <li >
+  <a class="dropdown-item" href="{{ url_for('seller_dashboard.logistics_bank_details') }}">
+  <i class="bi bi-bank2"></i> My Bank Accounts
+</a>
+
+</li>
+                <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+                 </ul>
           </li>
 
         </ul>
       </div>
     </div>
   </nav>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
 
   <!-- Main Content -->
   <div class="container mt-4">
