@@ -654,36 +654,54 @@ def search_live_agents():
     data = request.get_json()
     user_lat = data.get('latitude')
     user_lon = data.get('longitude')
+    query_str = data.get('city', '').strip().lower()  # city or state fallback
 
-    if user_lat is None or user_lon is None:
-        return jsonify([])
-
-
-    agents = User.query.filter_by(role='agent').filter(
+    query = User.query.filter_by(role='agent').filter(
         User.latitude.isnot(None),
         User.longitude.isnot(None)
-    ).all()
+    )
 
     results = []
-    for agent in agents:
-        dist = haversine(user_lat, user_lon, agent.latitude, agent.longitude)
-        kyc = AgentKYC.query.filter_by(user_id=agent.id).order_by(AgentKYC.created_at.desc()).first()
-        kyc_status = kyc.status if kyc else None
 
+    if user_lat is not None and user_lon is not None:
+        # Geolocation search
+        agents = query.all()
+        for agent in agents:
+            dist = haversine(user_lat, user_lon, agent.latitude, agent.longitude)
+            kyc = AgentKYC.query.filter_by(user_id=agent.id).order_by(AgentKYC.created_at.desc()).first()
+            kyc_status = kyc.status if kyc else None
 
+            results.append({
+                'id': agent.id,
+                'name': f"{agent.first_name} {agent.last_name}",
+                'state': agent.state,
+                'city': agent.city,
+                'distance_km': round(dist, 2),
+                'is_online': agent.is_online,
+                'kyc_status': kyc_status
+            })
 
-        results.append({
-            'id': agent.id,
-            'name': f"{agent.first_name} {agent.last_name}",
-            'state': agent.state,
-            'city': agent.city,
-            'distance_km': round(dist, 2),
-            'is_online': agent.is_online,
-            "kyc_status": kyc_status,  # ✅ include this
+        results.sort(key=lambda x: x['distance_km'])
 
-        })
+    elif query_str:
+        # Manual search: match city OR state
+        agents = query.filter(
+            (User.city.ilike(f"%{query_str}%")) | (User.state.ilike(f"%{query_str}%"))
+        ).all()
+        for agent in agents:
+            kyc = AgentKYC.query.filter_by(user_id=agent.id).order_by(AgentKYC.created_at.desc()).first()
+            kyc_status = kyc.status if kyc else None
 
-    results.sort(key=lambda x: x['distance_km'])
+            results.append({
+                'id': agent.id,
+                'name': f"{agent.first_name} {agent.last_name}",
+                'state': agent.state,
+                'city': agent.city,
+                'distance_km': None,
+                'is_online': agent.is_online,
+                'kyc_status': kyc_status
+            })
+
     return jsonify(results)
 
 

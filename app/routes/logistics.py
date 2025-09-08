@@ -844,3 +844,33 @@ def logistics_withdraw():
         bank_accounts=bank_accounts
     )
 
+@logistics_bp.route('/search-live-logistics', methods=['POST'])
+def search_live_logistics():
+    data = request.get_json()
+    query_str = data.get('city', '').strip().lower()  # city or state fallback
+
+    query = User.query.filter_by(role='logistics')
+    results = []
+
+    if query_str:
+        # Match city OR state (case-insensitive)
+        logistics_list = query.filter(
+            (User.city.ilike(f"%{query_str}%")) | (User.state.ilike(f"%{query_str}%"))
+        ).all()
+
+        for logistic in logistics_list:
+            # Get latest KYC for this logistic
+            kyc = AgentKYC.query.filter_by(user_id=logistic.id).order_by(AgentKYC.created_at.desc()).first()
+            kyc_status = kyc.status if kyc else None
+
+            results.append({
+                'id': logistic.id,
+                'name': f"{logistic.first_name} {logistic.last_name}",
+                'state': logistic.state,
+                'city': logistic.city,
+                'distance_km': None,        # manual search doesn’t use distance
+                'is_online': logistic.is_online,
+                'kyc_status': kyc_status
+            })
+
+    return jsonify(results)
