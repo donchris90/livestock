@@ -1,31 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>{{ product.title }} for Sale in {{ product.city }}, {{ product.state }} | Afrik Livestock</title>
-  <meta name="description" content="{{ product.description[:160] }} Available in {{ product.city }}, {{ product.state }}. Price: ₦{{ product.price }}. Connect with the seller on Afrik Livestock.">
-
-  <!-- Open Graph -->
-  <meta property="og:title" content="{{ product.title }} - Afrik Livestock">
-  <meta property="og:description" content="{{ product.description[:160] }}">
-  <meta property="og:image" content="{{ product.photos[0] if product.photos else 'https://res.cloudinary.com/dkkt6i6qj/image/upload/v1757373444/logo_phn09v.png' }}">
-  <meta property="og:url" content="{{ request.url }}">
-  <meta property="og:type" content="product">
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{{ product.title }}">
-  <meta name="twitter:description" content="{{ product.description[:160] }}">
-  <meta name="twitter:image" content="{{ product.photos[0] if product.photos else 'https://res.cloudinary.com/dkkt6i6qj/image/upload/v1757373444/logo_phn09v.png' }}">
-
-
   <meta charset="UTF-8">
-  <title>My Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Page Title -->
+  <title>
+    {% if product %}
+      {{ product.title }} for Sale in {{ product.city }}, {{ product.state }} | Afrik Livestock
+    {% else %}
+      Afrik Livestock Marketplace
+    {% endif %}
+  </title>
+<!-- Favicon from Cloudinary -->
+<link rel="icon" href="https://res.cloudinary.com/dkkt6i6qj/image/upload/c_pad,w_32,h_32/v1757449001/6d07c4907dab40e3b01586c635e1247b_logo_pql03q.png" type="image/x-icon">
+<link rel="shortcut icon" href="https://res.cloudinary.com/dkkt6i6qj/image/upload/c_pad,w_32,h_32/v1757449001/6d07c4907dab40e3b01586c635e1247b_logo_pql03q.png" type="image/x-icon">
+
+  <!-- Meta Description -->
+  <meta name="description" content="{% if product %}
+    {{ product.description[:160] }} Available in {{ product.city }}, {{ product.state }}. Price: ₦{{ product.price }}. Connect with the seller on Afrik Livestock.
+  {% else %}
+    Afrik Livestock Marketplace – Buy and sell livestock easily, safely, and locally.
+  {% endif %}">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:title" content="{% if product %}{{ product.title }} - Afrik Livestock{% else %}Afrik Livestock Marketplace{% endif %}">
+  <meta property="og:description" content="{% if product %}{{ product.description[:160] }} Available in {{ product.city }}, {{ product.state }}.{% else %}Buy and sell livestock easily on Afrik Livestock.{% endif %}">
+  <meta property="og:image" content="{% if product and product.photos %}{{ product.photos[0] | replace('/upload/', '/upload/f_auto,q_auto,w_1200/') }}{% else %}https://res.cloudinary.com/dkkt6i6qj/image/upload/v1757373444/logo_phn09v.png{% endif %}">
+  <meta property="og:url" content="{{ request.url }}">
+  <meta property="og:type" content="{% if product %}product{% else %}website{% endif %}">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{% if product %}{{ product.title }} | Afrik Livestock{% else %}Afrik Livestock Marketplace{% endif %}">
+  <meta name="twitter:description" content="{% if product %}{{ product.description[:160] }}{% else %}Buy and sell livestock easily on Afrik Livestock.{% endif %}">
+  <meta name="twitter:image" content="{% if product and product.photos %}{{ product.photos[0] | replace('/upload/', '/upload/f_auto,q_auto,w_1200/') }}{% else %}https://res.cloudinary.com/dkkt6i6qj/image/upload/v1757373444/logo_phn09v.png{% endif %}">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="{{ request.url }}">
+
+  <!-- Stylesheets -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- Custom Styles -->
   <style>
     body {
       background-color: #f8f9fa;

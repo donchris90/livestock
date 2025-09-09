@@ -5,7 +5,14 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
 from app.models import User,Wallet
 from app.extensions import db
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from app.forms import RequestResetForm
+from app.models import User
 
+from flask import current_app
+
+from flask_mail import Message, Mail
+from app.models import User
 
 from app.forms import LoginForm
 from app.utils.email_utils import send_email  # ✅ Import this at the top
@@ -13,7 +20,7 @@ from app.utils.email_utils import send_email  # ✅ Import this at the top
 
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
-
+mail = Mail()
 
 # ------------------------------
 # Login Route
@@ -169,3 +176,68 @@ def admin_login():
         flash('Invalid admin credentials', 'danger')
 
     return render_template('admin_login.html')
+
+
+# Serializer for generating tokens
+def generate_token(email):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt='password-reset-salt')
+
+def verify_token(token, expiration=3600):
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(token, salt='password-reset-salt', max_age=expiration)
+    except (SignatureExpired, BadSignature):
+        return None
+    return email
+
+# Send reset email
+def send_reset_email(user, token):
+    reset_url = url_for('auth.reset_password', token=token, _external=True)
+    msg = Message(subject="Reset Your Password",
+                  recipients=[user.email],
+                  html=render_template('reset_email.html', reset_url=reset_url, user=user))
+    mail.send(msg)
+
+
+# ===== Route: Forgot Password =====
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        if user:
+            token = generate_token(user.email)
+            send_reset_email(user, token)
+            flash('Check your email for reset instructions.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('Email not found.', 'danger')
+    return render_template('forgot_password.html')
+
+
+# ===== Route: Reset Password =====
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    email = verify_token(token)
+    if not email:
+        flash('The reset link is invalid or expired.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+        else:
+            user.set_password(password)  # Make sure your User model has a set_password method
+            db.session.commit()
+            flash('Your password has been updated!', 'success')
+            return redirect(url_for('auth.login'))
+
+    return render_template('reset_password.html', token=token)

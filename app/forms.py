@@ -271,3 +271,7 @@ class EditProfileForm(FlaskForm):
     profile_photo = FileField("Profile Photo", validators=[Optional()])
     company_name = StringField("Company Name", validators=[Optional()])
     submit = SubmitField("Save Changes")
+
+class RequestResetForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Request Password Reset')

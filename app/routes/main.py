@@ -5,6 +5,10 @@ from sqlalchemy.orm import joinedload  # ⬅️ Import this at the top
 from datetime import datetime
 from app.models import Product, db
 from datetime import timedelta
+from flask import render_template, url_for, flash, redirect, request
+from app.forms import RequestResetForm
+from app.models import User
+
 
 main_bp = Blueprint('main', __name__)
 
@@ -130,3 +134,4 @@ def refund_policy():
 def category(category):
     products = Product.query.filter_by(category=category).all()
     return render_template("category.html", category=category, products=products)
+
