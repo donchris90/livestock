@@ -1,69 +1,170 @@
 {% extends "logistics/base.html" %}
 
-{% block title %}Agent Profile{% endblock %}
+{% block title %}Logistics Profile{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
   <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-      <h4 class="mb-0">Agent Profile</h4>
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <h4 class="mb-0">Logistics Profile</h4>
+      <a href="{{ url_for('logistics.edit_profile') }}" class="btn btn-light btn-sm">
+        <i class="fas fa-edit"></i> Edit Profile
+      </a>
     </div>
+
     <div class="card-body">
-
       <div class="row">
-        <!-- Left Section -->
+        <!-- Left Column -->
         <div class="col-md-4 text-center">
-          <img src="https://via.placeholder.com/150" class="img-thumbnail rounded-circle mb-3" alt="Agent Avatar" />
-          <h5>{{ agent.user.first_name }} {{ agent.user.last_name }}</h5>
-          <p class="text-muted">{{ agent.user.email }}</p>
+          {% if logistics.user.profile_photo %}
+            <img src="{{ logistics.user.profile_photo }}" alt="Profile Photo"
+                 class="img-thumbnail rounded-circle mb-3" width="150" height="150" style="object-fit: cover;">
+          {% else %}
+            <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Profile Photo"
+                 class="img-thumbnail rounded-circle mb-3" width="150" height="150" style="object-fit: cover;">
+          {% endif %}
 
-          {% if agent.verified %}
+          <h5>{{ logistics.user.first_name }} {{ logistics.user.last_name }}</h5>
+          <p class="text-muted">{{ logistics.user.email }}</p>
+
+          <!-- KYC Badge -->
+          {% if logistics.user.kyc and logistics.user.kyc.status|lower == 'approved' %}
             <span class="badge bg-success"><i class="fas fa-check-circle"></i> Verified</span>
           {% else %}
-            <span class="badge bg-secondary">Not Verified</span>
+            <span class="badge bg-secondary">Unverified</span>
           {% endif %}
 
-          {% if agent.availability_status %}
-            <div class="mt-2">
-              <span class="badge bg-info">{{ agent.availability_status }}</span>
-            </div>
-          {% endif %}
+          <p class="mt-3">
+            <span class="badge bg-warning text-dark">
+              ⭐ {{ average_rating }} ({{ total_reviews }} reviews)
+            </span>
+          </p>
         </div>
 
-        <!-- Right Section -->
+        <!-- Right Column -->
         <div class="col-md-8">
-          {% if agent.bio %}
-            <h5>About</h5>
-            <p>{{ agent.bio }}</p>
-          {% endif %}
+          <h5>Company Information</h5>
+          <p><strong>Company:</strong> {{ logistics.user.company_name or '-' }}</p>
+          <p><strong>Location:</strong> {{ logistics.user.street }}, {{ logistics.user.city }}, {{ logistics.user.state }}</p>
+          <p><strong>Phone:</strong> {{ logistics.user.phone }}</p>
 
-          {% if agent.specialties %}
-            <h5>Specialties</h5>
-            <ul>
-              {% for tag in agent.specialties %}
-                <li>{{ tag }}</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
 
-          {% if agent.portfolio_links %}
-            <h5>Portfolio Links</h5>
-            <ul>
-              {% for link in agent.portfolio_links %}
-                <li><a href="{{ link }}" target="_blank">{{ link }}</a></li>
-              {% endfor %}
-            </ul>
-          {% endif %}
+          <h5 class="mt-3">Transport Details</h5>
+          <p><strong>Vehicle:</strong> {{ logistics.vehicle_type or '-' }}</p>
+          <p><strong>Capacity:</strong> {{ logistics.capacity or '-' }}</p>
+          <p><strong>Rate:</strong> ₦{{ logistics.rate_per_km if logistics.rate_per_km else '0' }} per km</p>
+          <p><strong>Service Areas:</strong> {{ logistics.service_areas or '-' }}</p>
 
-          {% if agent.whatsapp_link %}
-            <a href="{{ agent.whatsapp_link }}" target="_blank" class="btn btn-success mt-3">
-              <i class="fab fa-whatsapp"></i> Contact on WhatsApp
-            </a>
+          {% if logistics.bio %}
+            <h5 class="mt-3">About</h5>
+            <p>{{ logistics.bio }}</p>
           {% endif %}
         </div>
       </div>
 
+      <!-- Reviews -->
+      <hr>
+      <div>
+        <h5>Reviews</h5>
+        {% if total_reviews > 0 %}
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Positive Reviews</h6>
+              {% for review in positive_reviews %}
+                <div class="p-2 mb-2 bg-light rounded">
+                  <strong>{{ review.reviewer.first_name }}</strong>
+                  <small class="text-muted float-end">{{ review.created_at.strftime('%d %b, %Y') }}</small>
+                  <div class="text-warning">
+                    {% for _ in range(review.rating) %}★{% endfor %}
+                    {% for _ in range(5 - review.rating) %}☆{% endfor %}
+                  </div>
+                  <p class="mb-0">{{ review.comment }}</p>
+                </div>
+              {% else %}
+                <p class="text-muted">No positive reviews yet.</p>
+              {% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <h6 class="text-danger">Negative Reviews</h6>
+              {% for review in negative_reviews %}
+                <div class="p-2 mb-2 bg-light rounded">
+                  <strong>{{ review.reviewer.first_name }}</strong>
+                  <small class="text-muted float-end">{{ review.created_at.strftime('%d %b, %Y') }}</small>
+                  <div class="text-warning">
+                    {% for _ in range(review.rating) %}★{% endfor %}
+                    {% for _ in range(5 - review.rating) %}☆{% endfor %}
+                  </div>
+                  <p class="mb-0">{{ review.comment }}</p>
+                </div>
+              {% else %}
+                <p class="text-muted">No negative reviews yet.</p>
+              {% endfor %}
+            </div>
+          </div>
+        {% else %}
+          <p class="text-muted">No reviews yet.</p>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
+
+<!-- SEO Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "LocalBusiness",
+  "name": "{{ logistics.company_name if logistics.company_name else (logistics.user.first_name ~ ' ' ~ logistics.user.last_name) }}",
+  "image": "{{ logistics.user.profile_photo if logistics.user.profile_photo else 'https://res.cloudinary.com/your-cloud-name/image/upload/v1690000000/seo/default-logistics.jpg' }}",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "{{ logistics.user.street }}",
+    "addressLocality": "{{ logistics.user.city }}",
+    "addressRegion": "{{ logistics.user.state }}",
+    "addressCountry": "NG"
+  },
+  "telephone": "{{ logistics.phone }}",
+  "url": "{{ request.url }}",
+  "priceRange": "₦₦",
+  "areaServed": "{{ logistics.service_areas if logistics.service_areas else logistics.user.state }}",
+  "serviceType": "Livestock logistics, delivery, transportation",
+  "employee": {
+    "@type": "Person",
+    "name": "{{ logistics.sender_name if logistics.sender_name else (logistics.user.first_name ~ ' ' ~ logistics.user.last_name) }}"
+  },
+  "makesOffer": {
+    "@type": "Offer",
+    "priceSpecification": {
+      "@type": "UnitPriceSpecification",
+      "price": "{{ logistics.rate_per_km if logistics.rate_per_km else 0 }}",
+      "priceCurrency": "NGN",
+      "unitCode": "KM"
+    }
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "{{ average_rating if average_rating else 0 }}",
+    "reviewCount": "{{ total_reviews if total_reviews else 0 }}"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "{{ logistics.company_name or (logistics.user.first_name ~ ' ' ~ logistics.user.last_name) }}",
+  "image": "{{ logistics.user.profile_photo if logistics.user.profile_photo else url_for('static', filename='default_profile.png', _external=True) }}",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "{{ logistics.user.street }}",
+    "addressLocality": "{{ logistics.user.city }}",
+    "addressRegion": "{{ logistics.user.state }}",
+    "addressCountry": "Nigeria"
+  },
+  "telephone": "{{ logistics.user.phone }}",
+  "url": "{{ request.url }}"
+}
+</script>
+
 {% endblock %}

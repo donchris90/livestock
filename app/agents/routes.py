@@ -277,6 +277,7 @@ def agent_profile(agent_id):
         negative_reviews=negative_reviews,
         average_rating=average_rating,
         total_reviews=total_reviews,
+        user=agent
 
 
     )

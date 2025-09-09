@@ -990,6 +990,7 @@ class LogisticsProfile(db.Model):
     user = db.relationship("User", back_populates="logistics_profile")
 
 
+
 from sqlalchemy import Enum
 
 class LogisticsBooking(db.Model):

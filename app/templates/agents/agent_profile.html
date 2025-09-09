@@ -108,4 +108,24 @@
     <p class="text-muted">No reviews yet.</p>
   {% endif %}
 </div>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "LocalBusiness",
+  "name": "{{ user.first_name }} {{ user.last_name }}",
+  "image": "{{ user.profile_photo if user.profile_photo else 'https://res.cloudinary.com/your-cloud-name/image/upload/v1690000000/seo/default-agent.jpg' }}",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "{{ user.street }}",
+    "addressLocality": "{{ user.city }}",
+    "addressRegion": "{{ user.state }}",
+    "addressCountry": "NG"
+  },
+  "telephone": "{{ user.phone }}",
+  "url": "{{ request.url }}",
+  "priceRange": "₦₦"
+}
+</script>
+
 {% endblock %}

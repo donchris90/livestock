@@ -171,7 +171,30 @@ def logistics_profile():
     if current_user.role != 'logistics':
         return "Unauthorized", 403
 
-    return render_template('logistics/profile.html', logistics=current_user.logistics_profile)
+    logistics = current_user.logistics_profile
+    if not logistics:
+        return redirect(url_for('logistics.edit_profile'))
+
+    # Fetch reviews for this logistics provider
+    reviews = logistics.reviews if hasattr(logistics, "reviews") else []
+
+    total_reviews = len(reviews)
+    average_rating = round(sum(r.rating for r in reviews) / total_reviews, 1) if total_reviews > 0 else 0
+
+    # Separate positive (>=4) and negative (<=2) reviews
+    positive_reviews = [r for r in reviews if r.rating >= 4]
+    negative_reviews = [r for r in reviews if r.rating <= 2]
+
+    return render_template(
+        "logistics/view_profile.html",
+        logistics=logistics,
+        total_reviews=total_reviews,
+        average_rating=average_rating,
+        positive_reviews=positive_reviews,
+        negative_reviews=negative_reviews
+    )
+
+
 
 @logistics_bp.route('/search-logistics')
 def search_logistics():
@@ -649,6 +672,17 @@ def allowed_file(filename):
 
 from flask import flash, redirect, url_for
 
+import cloudinary
+import cloudinary.uploader
+from werkzeug.utils import secure_filename
+
+# Make sure you have this configured in your app startup (config.py or __init__.py):
+# cloudinary.config(
+#     cloud_name="your_cloud_name",
+#     api_key="your_api_key",
+#     api_secret="your_api_secret"
+# )
+
 @logistics_bp.route("/edit-profile", methods=["GET", "POST"])
 @login_required
 def edit_profile():
@@ -656,6 +690,7 @@ def edit_profile():
 
     if request.method == "POST":
         try:
+            # ✅ Update basic info
             user.first_name = request.form.get("first_name")
             user.last_name = request.form.get("last_name")
             user.phone = request.form.get("phone")
@@ -665,12 +700,21 @@ def edit_profile():
             user.company_name = request.form.get("company_name")
             user.about = request.form.get("about")
 
+            # ✅ Handle Profile Photo (Cloudinary Upload)
             if "profile_photo" in request.files:
                 file = request.files["profile_photo"]
-                if file.filename:
-                    filename = secure_filename(file.filename)
-                    file.save(os.path.join("app/static/uploads", filename))
-                    user.profile_photo = f"uploads/{filename}"
+                if file and file.filename:
+                    try:
+                        upload_result = cloudinary.uploader.upload(
+                            file,
+                            folder="logistics_profiles",  # optional folder name
+                            public_id=f"user_{user.id}_profile",  # keep it unique
+                            overwrite=True
+                        )
+                        # Save only the secure Cloudinary URL
+                        user.profile_photo = upload_result.get("secure_url")
+                    except Exception as e:
+                        flash(f"❌ Cloudinary upload failed: {str(e)}", "danger")
 
             db.session.commit()
             flash("✅ Profile updated successfully!", "success")
@@ -681,6 +725,7 @@ def edit_profile():
             flash(f"❌ Error updating profile: {str(e)}", "danger")
 
     return render_template("logistics/edit_profile.html", user=user)
+
 
 
 

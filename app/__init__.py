@@ -129,7 +129,8 @@ def create_app():
     from app.routes.logistics import logistics_bp
     from test11 import test_bp
     from app.routes.service_escrow import service_escrow_bp
-
+    from app.routes.sitemap import sitemap_bp
+    app.register_blueprint(sitemap_bp)
     blueprints = [
         service_escrow_bp, logistics_bp, test_bp, main_bp, auth_bp, chat_bp,
         seller_dashboard_bp, agents_bp, search_bp, admin_bp, escrow_bp,

@@ -66,4 +66,22 @@
     </div>
   </div>
 </div>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "{{ logistics.company_name or (logistics.user.first_name ~ ' ' ~ logistics.user.last_name) }}",
+  "image": "{{ logistics.user.profile_photo if logistics.user.profile_photo else url_for('static', filename='default_profile.png', _external=True) }}",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "{{ logistics.user.street }}",
+    "addressLocality": "{{ logistics.user.city }}",
+    "addressRegion": "{{ logistics.user.state }}",
+    "addressCountry": "Nigeria"
+  },
+  "telephone": "{{ logistics.user.phone }}",
+  "url": "{{ request.url }}"
+}
+</script>
+
 {% endblock %}

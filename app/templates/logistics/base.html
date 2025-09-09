@@ -181,5 +181,27 @@
       });
     });
   </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Afrik Livestock",
+  "url": "{{ url_for('main.home', _external=True) }}",
+  "logo": "{{ url_for('static', filename='logo.png', _external=True) }}",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+234-812-625329",
+    "contactType": "customer service",
+    "areaServed": "NG",
+    "availableLanguage": ["English"]
+  },
+  "sameAs": [
+    "https://www.facebook.com/yourpage",
+    "https://www.instagram.com/yourpage",
+    "https://twitter.com/yourpage"
+  ]
+}
+</script>
+
 </body>
 </html>

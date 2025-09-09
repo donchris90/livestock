@@ -94,7 +94,7 @@ from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 from sqlalchemy import func
 
-
+from datetime import timedelta
 from decimal import Decimal
 from decimal import Decimal, ROUND_DOWN
 
@@ -678,11 +678,13 @@ def product_detail(product_id):
         avg_rating = 0
 
     avg_rating_rounded = round(avg_rating, 1)
+    price_valid_until = (product.created_at + timedelta(days=30)).strftime('%Y-%m-%d')
 
     return render_template(
         'product_detail.html',
         product=product,
         product_id=product_id,
+        price_valid_until=price_valid_until,
         seller=seller,
         agent=agent,
         total_reviews=total_reviews,

@@ -4,6 +4,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload  # ⬅️ Import this at the top
 from datetime import datetime
 from app.models import Product, db
+from datetime import timedelta
 
 main_bp = Blueprint('main', __name__)
 
@@ -124,3 +125,8 @@ def privacy_policy():
 @main_bp.route('/refund-policy')
 def refund_policy():
     return render_template('refund-policy.html')
+
+@main_bp.route("/category/<string:category>")
+def category(category):
+    products = Product.query.filter_by(category=category).all()
+    return render_template("category.html", category=category, products=products)

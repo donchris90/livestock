@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <title>Afrik Livestock - Buy & Sell Livestock Products in Nigeria</title>
+  <meta name="description" content="Afrik Livestock is Nigeria’s #1 livestock marketplace. Buy and sell farm products, connect with agents, vets, and logistics providers easily.">
+  <meta name="keywords" content="Afrik Livestock, Livestock Marketplace, Farming, Buy Livestock, Sell Livestock, Nigeria, Agents, Vets, Logistics">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Afrik Livestock - Nigeria’s Trusted Livestock Marketplace">
+  <meta property="og:description" content="Buy & sell livestock products, hire agents, vets, and logistics services. Trusted farming marketplace in Nigeria.">
+  <meta property="og:image" content="https://res.cloudinary.com/dkkt6i6qj/image/upload/v1757373444/logo_phn09v.png">
+  <meta property="og:url" content="{{ request.url }}">
+  <meta property="og:type" content="website">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Afrik Livestock - Livestock Marketplace">
+  <meta name="twitter:description" content="Buy & sell livestock products, hire agents, vets, and logistics in Nigeria.">
+  <meta name="twitter:image" content="https://res.cloudinary.com/dkkt6i6qj/image/upload/v1757373444/logo_phn09v.png">
+
+
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Livestock Marketplace</title>
@@ -84,7 +102,7 @@ footer .bottom-bar {
 <nav class="navbar navbar-expand-lg navbar-light">
   <div class="container">
     <a class="navbar-brand" href="{{ url_for('main.home') }}">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Livestock Market" style="height:40px;">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Livestock Market" style="width:120px;">
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
@@ -409,14 +427,7 @@ footer .bottom-bar {
 <!-- Footer -->
 
 
-<!-- Mobile Bottom Nav -->
-<div class="bottom-nav d-md-none">
-  <a href="{{ url_for('main.home') }}"><i class="fas fa-home"></i>Home</a>
-  <a href="{{ url_for('main.home') }}"><i class="fas fa-search"></i>Search</a>
-  <a href="{{ url_for('seller_dashboard.upload_product') }}"><i class="fas fa-plus-square"></i>Post</a>
-  <a href="{{ url_for('chat.inbox') }}"><i class="fas fa-comment-dots"></i>Chat</a>
-  <a href="{{ url_for('seller_dashboard.my_dashboard') }}"><i class="fas fa-user"></i>Profile</a>
-</div>
+
 <!-- ✅ Auto-load LGAs Script -->
 <script>
   const lgasByState = {

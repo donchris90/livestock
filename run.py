@@ -1,6 +1,5 @@
 import os
 from app import create_app, socketio
-from flask_socketio import SocketIO, join_room, leave_room, emit
 
 
 # ---------- Create Flask App ----------
@@ -15,16 +14,7 @@ scheduler.add_job(check_featured_expiry, 'interval', hours=1)
 scheduler.start()
 
 # Initialize Socket.IO
-socketio = SocketIO(app, cors_allowed_origins="*")
 
-# 🟢 Place your join handler here
-@socketio.on('join')
-def handle_join(data):
-    user_id = data.get('user_id')
-    if user_id:
-        room = f'user_{user_id}'
-        join_room(room)
-        print(f"User {user_id} joined room {room}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

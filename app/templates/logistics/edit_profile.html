@@ -62,15 +62,33 @@
             <textarea class="form-control" id="about" name="about">{{ user.about or '' }}</textarea>
         </div>
 
+        <!-- Profile Photo -->
         <div class="mb-3">
             <label>Profile Photo</label><br>
             {% if user.profile_photo %}
-                <img src="{{ url_for('static', filename=user.profile_photo) }}" class="img-thumbnail mb-2" style="max-height: 120px;">
+                <!-- Since Cloudinary URL is already stored, no need for url_for -->
+                <img id="profile-preview" src="{{ user.profile_photo }}"
+                     class="img-thumbnail mb-2" style="max-height: 150px;">
+            {% else %}
+                <img id="profile-preview" src="{{ url_for('static', filename='default_profile.png') }}"
+                     class="img-thumbnail mb-2" style="max-height: 150px;">
             {% endif %}
-            <input type="file" name="profile_photo" class="form-control">
+            <input type="file" name="profile_photo" class="form-control" onchange="previewImage(event)">
         </div>
 
         <button class="btn btn-primary">Update Profile</button>
     </form>
 </div>
+
+<!-- Preview Script -->
+<script>
+function previewImage(event) {
+    const reader = new FileReader();
+    reader.onload = function(){
+        const output = document.getElementById('profile-preview');
+        output.src = reader.result;
+    }
+    reader.readAsDataURL(event.target.files[0]);
+}
+</script>
 {% endblock %}
