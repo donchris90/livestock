@@ -54,3 +54,4 @@ def handle_booking_payment(buyer_id, seller_id, product_id, full_amount):
 
     db.session.commit()
     return payment
+

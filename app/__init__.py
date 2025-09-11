@@ -1,10 +1,10 @@
 import os
 import eventlet  # ← Must be at the very top
 eventlet.monkey_patch()
-
+from flask_login import current_user
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, flash,g
 from flask.cli import with_appcontext
 from flask_wtf import CSRFProtect
 from flask_apscheduler import APScheduler
@@ -17,7 +17,7 @@ from app.commands import register_commands
 from app.context_processors import init_context_processors
 from app.chat.socket_events import register_chat_events
 from app.tasks.renewals import process_auto_renewals
-
+from app.utils.plan_limits import get_upload_limit
 load_dotenv()
 
 csrf = CSRFProtect()
@@ -171,6 +171,30 @@ def create_app():
         trigger='interval',
         minutes=10
     )
+
+    @app.before_request
+    def check_subscription_expiry():
+        if current_user.is_authenticated:
+            g.subscription_status = None  # default, no message
+            now = datetime.utcnow()
+
+            if current_user.subscription_expiry and current_user.subscription_expiry < now:
+                # Plan expired
+                if current_user.grace_end and current_user.grace_end > now:
+                    # Still in grace period
+                    remaining = (current_user.grace_end - now).days
+                    g.subscription_status = f"⚠️ Your plan expired. You have {remaining} day(s) grace period."
+                else:
+                    # Grace period over, downgrade to free
+                    current_user.plan_name = 'Free'
+                    current_user.upload_limit = get_upload_limit('Free')
+                    current_user.subscription_expiry = None
+                    current_user.grace_end = None
+                    db.session.commit()
+                    g.subscription_status = "⚠️ Your subscription expired. You've been downgraded to the Free plan."
+            else:
+                # Plan active
+                g.subscription_status = None
 
     # ---------- Optional: Create tables ----------
     with app.app_context():

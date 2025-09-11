@@ -9,6 +9,7 @@ from app.utils.paystack import verify_paystack_payment,get_escrow_role_field  # 
 from app.utils.paystack import initialize_transaction
 from app.utils. payout_utils import initiate_paystack_transfer
 from app.utils.payout_utils import get_or_create_wallet,to_decimal
+from app.utils.firebase_notifications import send_fcm_notification
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from app.utils.email import send_email  # adjust path based on where send_email is defined
 from datetime import datetime, timedelta
@@ -270,7 +271,7 @@ def inject_now():
 def upload_product():
     user = User.query.get(current_user.id)
 
-    # Plan limits
+    # ---- PLAN LIMITS ----
     plan_limits = {'Free': 2, 'Starter': 5, 'Pro': 10, 'Premium': 100}
     plan_name = (user.plan_name or 'Free').capitalize()
     upload_limit = plan_limits.get(plan_name, 2)
@@ -281,6 +282,7 @@ def upload_product():
         return redirect(url_for('seller_dashboard.upgrade_plan'))
 
     if request.method == 'POST':
+        # ---- FORM DATA ----
         title = request.form.get('title', '').strip()
         category = request.form.get('category', '').strip()
         type_ = request.form.get('type', '').strip()
@@ -290,16 +292,7 @@ def upload_product():
         open_to_negotiation_raw = request.form.get('open_to_negotiation')
         images = request.files.getlist('images')
 
-        # Open to negotiation normalization
-        open_to_negotiation = 'not sure'
-        if open_to_negotiation_raw:
-            val = open_to_negotiation_raw.lower()
-            if val in ['true', 'yes', '1', 'on']:
-                open_to_negotiation = 'yes'
-            elif val in ['false', 'no', '0', 'off']:
-                open_to_negotiation = 'no'
-
-        # Quantity & price validation
+        # ---- VALIDATION ----
         try:
             quantity = int(request.form.get('quantity', '0'))
             price = float(request.form.get('price', '0'))
@@ -315,13 +308,22 @@ def upload_product():
             flash("📸 Please upload at least 3 product images.", "warning")
             return redirect(url_for('seller_dashboard.upload_product'))
 
-        # Upload images to Cloudinary
+        # ---- OPEN TO NEGOTIATION NORMALIZATION ----
+        open_to_negotiation = 'not sure'
+        if open_to_negotiation_raw:
+            val = open_to_negotiation_raw.lower()
+            if val in ['true', 'yes', '1', 'on']:
+                open_to_negotiation = 'yes'
+            elif val in ['false', 'no', '0', 'off']:
+                open_to_negotiation = 'no'
+
+        # ---- IMAGE UPLOAD TO CLOUDINARY ----
         image_urls = []
         for image in images[:5]:  # limit max 5 images
             if image and allowed_file(image.filename):
                 upload_result = cloudinary.uploader.upload(
                     image,
-                    folder=f"products/{user.id}",  # optional: organize by user
+                    folder=f"products/{user.id}",
                     use_filename=True,
                     unique_filename=True,
                     overwrite=False
@@ -331,11 +333,11 @@ def upload_product():
                 flash("❌ Only jpg, png, gif, webp files are allowed.", "danger")
                 return redirect(url_for('seller_dashboard.upload_product'))
 
-        # Boost & feature based on plan
+        # ---- FEATURE/BOOST SETTINGS ----
         is_featured = plan_name in ['Pro', 'Premium']
         boost_score = {'Free': 0, 'Starter': 1, 'Pro': 5, 'Premium': 10}.get(plan_name, 0)
 
-        # Save product to DB
+        # ---- SAVE TO DATABASE ----
         product = Product(
             user_id=user.id,
             title=title,
@@ -350,17 +352,33 @@ def upload_product():
             price=price,
             open_to_negotiation=open_to_negotiation,
             phone_display=user.phone,
-            photos=image_urls,  # store Cloudinary URLs
+            photos=image_urls,
             is_featured=is_featured,
             boost_score=boost_score
         )
         db.session.add(product)
         db.session.commit()
 
+        # ---- NOTIFICATION: SEND TO BUYERS ----
+        product_url = f"https://www.afriklivestock.com/product/{product.id}"
+        notification_title = "🐖 New Product Available!"
+        notification_body = f"Hello, {product.title} is now available. Tap to view product."
+
+        buyers = User.query.filter(User.role == "buyer").all()
+        for buyer in buyers:
+            if buyer.fcm_token:
+                send_fcm_notification(
+                    token=buyer.fcm_token,
+                    title=notification_title,
+                    body=notification_body,
+                    product_url=product_url
+                )
+
         flash("✅ Product uploaded successfully!", "success")
         return redirect(url_for('seller_dashboard.my_dashboard'))
 
     return render_template('upload_product.html', user=user)
+
 
 
 import cloudinary.uploader

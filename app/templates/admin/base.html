@@ -102,7 +102,8 @@
 
         <li class="nav-item"><a class="nav-link" href="{{ url_for('seller_dashboard.admin_subscriptions') }}">💼 Plans</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.reviews') }}">⭐ Reviews</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.reports') }}">📝 Reports</a></li>
+        <li class="nav-item"><a class="nav-link"  href="{{ url_for('admin.broadcast_message') }}">
+        <i class="bi bi-chat-left-text"></i> Send Message</li>
       </ul>
 
       <!-- Right Side -->
@@ -124,6 +125,7 @@
             <i class="bi bi-person-circle"></i> {{ current_user.first_name or 'Admin' }}
           </a>
           <ul class="dropdown-menu dropdown-menu-end">
+
             <li><a class="dropdown-item" href="{{ url_for('admin.settings') }}">⚙️ Settings</a></li>
             <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
           </ul>

@@ -6,6 +6,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import func, or_
 from app.forms import RegistrationForm
 from app.extensions import db
+from app.utils.firebase_notifications import send_fcm_notification
 from app.models import (User, Product,
                         WalletTransaction,AdminWalletTransaction,BookingRequest,Wallet,
                         AdminRevenue,VerificationDocument, Setting,ChatMessage,
@@ -960,3 +961,31 @@ def reject_withdrawal(withdrawal_id):
     flash(f"Withdrawal of ₦{withdrawal.amount:,.2f} rejected and refunded.", "info")
 
     return redirect(url_for("admin.list_withdrawals"))
+
+@admin_bp.route('/broadcast', methods=['GET', 'POST'])
+@login_required
+def broadcast_message():
+
+    if current_user.role != 'admin':
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("seller_dashboard.my_dashboard"))
+
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        message = request.form.get('message', '').strip()
+
+        if not title or not message:
+            flash("❌ Title and message are required.", "danger")
+            return redirect(url_for('admin.broadcast_message'))
+
+        # Send notification to everyone subscribed to "all_users"
+        result = send_fcm_notification(
+            topic="all_users",
+            title=title,
+            body=message
+        )
+
+        flash(f"✅ Message broadcasted to all users!", "success")
+        return redirect(url_for('admin.broadcast_message'))
+
+    return render_template('admin/admin_broadcast.html')

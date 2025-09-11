@@ -240,14 +240,34 @@
 <!-- ✅ Plan Reminder Section -->
 {% if current_user.is_authenticated %}
   <div class="text-center mt-3">
-    {% if current_user.subscription_plan != 'Free' and current_user.subscription_expiry %}
-      {% set days_left = (current_user.subscription_expiry - current_time).days %}
-      <p class="mb-1 text-sm">
-        📦 Current Plan: <strong>{{ current_user.subscription_plan }}</strong> ({{ days_left }} days left): <a href="{{ url_for('seller_dashboard.show_plans') }}" class="btn btn-warning btn-sm">Upgrade</a>
-      </p>
-    {% else %}
+    {% set now = current_time %}
+{% if current_user.subscription_plan != 'Free' and current_user.subscription_expiry %}
+  {% if current_user.subscription_expiry >= now %}
+    {# Plan active #}
+    {% set days_left = (current_user.subscription_expiry - now).days %}
+    <p class="mb-1 text-sm">
+      📦 Current Plan: <strong>{{ current_user.subscription_plan }}</strong> ({{ days_left }} day{{ 's' if days_left > 1 else '' }} left)
+      <a href="{{ url_for('seller_dashboard.show_plans') }}" class="btn btn-warning btn-sm">Upgrade</a>
+    </p>
+  {% elif current_user.grace_end and current_user.grace_end >= now %}
+    {# Plan expired but still in grace period #}
+    {% set grace_days_left = (current_user.grace_end - now).days %}
+    <p class="mb-1 text-sm text-warning">
+      ⚠️ Your <strong>{{ current_user.subscription_plan }}</strong> plan expired. You have {{ grace_days_left }} day{{ 's' if grace_days_left > 1 else '' }} grace period.
+      <a href="{{ url_for('seller_dashboard.show_plans') }}" class="btn btn-warning btn-sm">Renew</a>
+    </p>
+  {% else %}
+    {# Grace period over, user downgraded #}
+    <p class="mb-1 text-sm text-danger">
+      ❌ You are now on the <strong>Free</strong> plan. <a href="{{ url_for('seller_dashboard.show_plans') }}" class="btn btn-warning btn-sm">Upgrade</a>
+    </p>
+  {% endif %}
+{% else %}
+  <p class="mb-1 text-sm">
+    📦 Current Plan: <strong>Free</strong> <a href="{{ url_for('seller_dashboard.show_plans') }}" class="btn btn-warning btn-sm">Upgrade</a>
+  </p>
+{% endif %}
 
-    {% endif %}
 
   </div>
 {% endif %}
