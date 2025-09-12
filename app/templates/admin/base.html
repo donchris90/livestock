@@ -4,16 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Dashboard</title>
+
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body {
       background-color: #f8f9fa;
     }
+
+    /* Navbar styling */
     .navbar-nav .nav-link {
       font-size: 0.95rem;
       padding: 0.5rem 0.75rem;
@@ -21,21 +25,36 @@
     .navbar-nav .dropdown-menu a {
       font-size: 0.9rem;
     }
+
+    /* News / Plan Info Bar */
     .news-bar {
       background: linear-gradient(to right, #e9f5ff, #f0fbff);
       border-top: 1px solid #d0e6f7;
       border-bottom: 1px solid #d0e6f7;
       padding: 0.6rem 0;
-    }
-    .news-bar .status-text {
       font-weight: 500;
       font-size: 0.95rem;
+    }
+
+    /* Toast Container */
+    #toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+    }
+
+    /* Alerts for subscription/plan warnings */
+    .plan-alert {
+      text-align: center;
+      margin: 0;
+      border-radius: 0;
     }
   </style>
 </head>
 <body>
 
-<!-- ✅ Navbar -->
+<!-- ================= Navbar ================= -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
   <div class="container-fluid">
     <a class="navbar-brand fw-bold" href="{{ url_for('admin.admin_dashboard') }}">
@@ -46,8 +65,11 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navbarAdmin">
-      <!-- Left Links -->
+
+      <!-- Left Nav Links -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+        <!-- Overview -->
         <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">📊 Overview</a></li>
 
         <!-- Users Dropdown -->
@@ -59,20 +81,8 @@
             <li><a class="dropdown-item" href="{{ url_for('admin.manage_users') }}?role=agent">Agents</a></li>
             <li><a class="dropdown-item" href="{{ url_for('admin.manage_vets') }}">Vets</a></li>
             <li><a class="dropdown-item" href="{{ url_for('admin.list_kyc') }}">Agent/Logistics KYC</a></li>
-         <li >
-  <a class="dropdown-item"  href="{{ url_for('admin.list_withdrawals') }}">
-    <i class="bi bi-cash-coin"></i> Withdrawals
-  </a>
-</li>
-
-              <li>
-  <a class="dropdown-item" href="{{ url_for('admin.seller_kyc_list') }}">
-    Seller KYC Requests
-</a>
-
-</li>
-
-
+            <li><a class="dropdown-item" href="{{ url_for('admin.list_withdrawals') }}"><i class="bi bi-cash-coin"></i> Withdrawals</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.seller_kyc_list') }}">Seller KYC Requests</a></li>
             <li><a class="dropdown-item" href="{{ url_for('admin.manage_logistics') }}">Logistics</a></li>
           </ul>
         </li>
@@ -85,29 +95,31 @@
             <li><a class="dropdown-item" href="{{ url_for('admin.flagged_products') }}">Flagged Products</a></li>
           </ul>
         </li>
-        <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.wallet_history') }}">💼 Wallet History</a></li>
 
-        <!-- Example for sidebar or dropdown menu -->
-<li class="nav-item">
-  <a class="nav-link" href="{{ url_for('admin.admin_escrow_dashboard') }}">
-    <i class="bi bi-shield-check"></i> Escrow Orders
+        <!-- Other Links -->
+
+<li class="nav-item dropdown">
+  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+    💼 Finance
   </a>
+  <ul class="dropdown-menu">
+    <li><a class="dropdown-item" href="{{ url_for('seller_dashboard.wallet_history') }}">Wallet History</a></li>
+    <li><a class="dropdown-item" href="{{ url_for('admin.admin_escrow_dashboard') }}"><i class="bi bi-shield-check"></i> Escrow Orders</a></li>
+    <li><a class="dropdown-item" href="{{ url_for('admin.revenue_overview') }}">Revenue</a></li>
+  </ul>
 </li>
 
-<li class="nav-item">
-    <a class="nav-link" href="{{ url_for('admin.revenue_overview') }}">Revenue</a>
-</li>
 
-        <li><a href="{{ url_for('admin.admin_settings') }}"> Settings</a></li>
-
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_settings') }}">Settings</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('seller_dashboard.admin_subscriptions') }}">💼 Plans</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.reviews') }}">⭐ Reviews</a></li>
-        <li class="nav-item"><a class="nav-link"  href="{{ url_for('admin.broadcast_message') }}">
-        <i class="bi bi-chat-left-text"></i> Send Message</li>
+
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.api_admin_messages') }}"><i class="bi bi-chat-left-text"></i> Send Message</a></li>
       </ul>
 
-      <!-- Right Side -->
+      <!-- Right Nav -->
       <ul class="navbar-nav mb-2 mb-lg-0">
+
+        <!-- Notifications -->
         <li class="nav-item me-3">
           <a class="nav-link position-relative" href="{{ url_for('admin.notifications') }}">
             <i class="bi bi-bell fs-5"></i>
@@ -125,17 +137,17 @@
             <i class="bi bi-person-circle"></i> {{ current_user.first_name or 'Admin' }}
           </a>
           <ul class="dropdown-menu dropdown-menu-end">
-
             <li><a class="dropdown-item" href="{{ url_for('admin.settings') }}">⚙️ Settings</a></li>
             <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
           </ul>
         </li>
       </ul>
+
     </div>
   </div>
 </nav>
 
-<!-- ✅ Flash Messages -->
+<!-- ================= Flash Messages ================= -->
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="container mt-3">
@@ -146,10 +158,10 @@
   {% endif %}
 {% endwith %}
 
-<!-- ✅ News & Plan Info Bar -->
+<!-- ================= News / Plan Info Bar ================= -->
 <div class="news-bar">
   <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center">
-    <div class="text-primary status-text mb-2 mb-md-0">
+    <div class="text-primary mb-2 mb-md-0">
       📰 System maintenance on Sunday @ 2PM | New features launching soon!
     </div>
     <div class="text-end">
@@ -163,28 +175,28 @@
   </div>
 </div>
 
-<!-- ✅ Grace Period or Expiry Warning -->
+<!-- ================= Grace Period / Expiry Alerts ================= -->
 {% if current_user.subscription and current_user.subscription.in_grace_period() %}
-  <div class="alert alert-warning text-center mb-0">
+  <div class="alert alert-warning plan-alert">
     ⏳ Grace period: {{ current_user.subscription.days_remaining() }} days left.
     <a href="{{ url_for('seller_dashboard.upgrade_plan') }}" class="btn btn-sm btn-outline-dark ms-2">Renew Now</a>
   </div>
 {% elif current_user.subscription and current_user.subscription.days_remaining() <= 3 %}
-  <div class="alert alert-warning text-center mb-0">
+  <div class="alert alert-warning plan-alert">
     ⚠ Plan expires in {{ current_user.subscription.days_remaining() }} day(s).
     <a href="{{ url_for('seller_dashboard.upgrade_plan') }}" class="btn btn-sm btn-outline-dark ms-2">Upgrade</a>
   </div>
 {% endif %}
 
-<!-- ✅ Toast Notification Container -->
-<div id="toast-container" style="position: fixed; top: 1rem; right: 1rem; z-index: 9999;"></div>
+<!-- ================= Toast Notifications ================= -->
+<div id="toast-container"></div>
 
-<!-- ✅ Page Content -->
+<!-- ================= Main Content ================= -->
 <main class="container mt-4 mb-5">
   {% block content %}{% endblock %}
 </main>
 
-<!-- ✅ Socket.IO Setup -->
+<!-- ================= Socket.IO Script ================= -->
 <script>
   const socket = io();
 
@@ -193,6 +205,7 @@
     socket.emit('join', { user_id: "{{ current_user.id }}" });
   });
 
+  // Real-time notifications
   socket.on('new_booking', data => showToast(data.message));
   socket.on('inspection_notification', data => showToast(data.message));
 
@@ -212,6 +225,9 @@
     setTimeout(() => toast.remove(), 7000);
   }
 </script>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
