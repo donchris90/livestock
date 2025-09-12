@@ -50,4 +50,7 @@ wsproto==1.2.0
 WTForms==3.2.1
 redis>=5.0.0,<6.0.0
 cloudinary>=1.32.0
-
+firebase-admin>=6.0.0
+google-auth>=2.0.0
+google-auth-httplib2>=0.1.0
+google-api-python-client>=2.0.0
