@@ -1,7 +1,7 @@
 import os
 import requests
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, abort, current_app
+from flask import Blueprint, render_template, request,jsonify, redirect, url_for, flash, Response, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import func, or_
 from app.forms import RegistrationForm
@@ -9,7 +9,7 @@ from app.extensions import db
 from app.utils.firebase_notifications import send_fcm_notification
 from app.models import (User, Product,
                         WalletTransaction,AdminWalletTransaction,BookingRequest,Wallet,
-                        AdminRevenue,VerificationDocument, Setting,ChatMessage,
+                        AdminRevenue,VerificationDocument,AdminBroadcast, Setting,ChatMessage,
                         Subscription, Escrow, Payment,Withdrawal,EscrowPayment, BankDetails,ProfitHistory,AgentKYC, PlatformWallet,PromotionPayment)
 from werkzeug.security import generate_password_hash
 from flask_socketio import emit
@@ -962,30 +962,28 @@ def reject_withdrawal(withdrawal_id):
 
     return redirect(url_for("admin.list_withdrawals"))
 
+# admin/routes.py
 @admin_bp.route('/broadcast', methods=['GET', 'POST'])
 @login_required
 def broadcast_message():
-
-    if current_user.role != 'admin':
-        flash("Unauthorized access", "danger")
-        return redirect(url_for("seller_dashboard.my_dashboard"))
-
     if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        message = request.form.get('message', '').strip()
+        title = request.form.get('title')
+        message = request.form.get('message')
 
         if not title or not message:
-            flash("❌ Title and message are required.", "danger")
+            flash("Both title and message are required", "danger")
             return redirect(url_for('admin.broadcast_message'))
 
-        # Send notification to everyone subscribed to "all_users"
-        result = send_fcm_notification(
-            topic="all_users",
-            title=title,
-            body=message
-        )
+        new_msg = AdminBroadcast(title=title, message=message)
+        db.session.add(new_msg)
+        db.session.commit()
 
-        flash(f"✅ Message broadcasted to all users!", "success")
+        flash("Broadcast message sent successfully!", "success")
         return redirect(url_for('admin.broadcast_message'))
 
     return render_template('admin/admin_broadcast.html')
+
+@admin_bp.route('/api/admin-messages', methods=['GET'])
+def admin_messages():
+    messages = AdminBroadcast.query.order_by(AdminBroadcast.created_at.desc()).all()
+    return jsonify([msg.to_dict() for msg in messages])
