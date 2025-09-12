@@ -1148,3 +1148,20 @@ class Withdrawal(db.Model):
     # Relationships
     user = db.relationship("User", backref="withdrawals")
     bank = db.relationship("BankDetails", backref="withdrawals", foreign_keys=[bank_id])
+
+# models.py
+class AdminBroadcast(db.Model):
+    __tablename__ = 'admin_broadcasts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "message": self.message,
+            "created_at": self.created_at.isoformat()
+        }
